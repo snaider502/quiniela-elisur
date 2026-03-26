@@ -12,15 +12,14 @@ export default function RankingScreen() {
 
   async function cargarRanking() {
   try {
-    console.log('Iniciando consulta...');
-    const response = await supabase.from('ranking').select('*');
-    console.log('Respuesta completa:', JSON.stringify(response));
-    
-    if (response.error) {
-      alert('Error: ' + response.error.message);
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, nombre');
+
+    if (error) {
+      alert('Error: ' + error.message);
     } else {
-      alert('Datos: ' + JSON.stringify(response.data));
-      setRanking(response.data);
+      setRanking(data.map(u => ({ ...u, puntos: 0 })));
     }
   } catch (e) {
     alert('Excepcion: ' + e.message);
