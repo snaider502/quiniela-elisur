@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 export default function RankingScreen() {
@@ -11,21 +11,15 @@ export default function RankingScreen() {
   }, []);
 
   async function cargarRanking() {
-  try {
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('id, nombre');
-
-    if (error) {
-      alert('Error: ' + error.message);
-    } else {
-      setRanking(data.map(u => ({ ...u, puntos: 0 })));
+    try {
+      const { data, error } = await supabase.from('usuarios').select('id, nombre');
+      if (error) alert('Error: ' + error.message);
+      else setRanking(data.map(u => ({ ...u, puntos: 0 })));
+    } catch (e) {
+      alert('Excepcion: ' + e.message);
     }
-  } catch (e) {
-    alert('Excepcion: ' + e.message);
+    setLoading(false);
   }
-  setLoading(false);
-}
 
   const medallas = ['🥇', '🥈', '🥉'];
 
@@ -39,6 +33,9 @@ export default function RankingScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>⚽ Quiniela Mundial 2026</Text>
+        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.salirBtn}>
+          <Text style={styles.salirTxt}>Salir</Text>
+        </TouchableOpacity>
       </View>
       <FlatList
         data={ranking}
@@ -60,6 +57,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  salirBtn: { position: 'absolute', right: 16, top: 20 },
+  salirTxt: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 16, marginHorizontal: 12, marginTop: 8, borderRadius: 10 },
   gold: { borderLeftWidth: 4, borderLeftColor: '#fbc02d', backgroundColor: '#fffde7' },
   silver: { borderLeftWidth: 4, borderLeftColor: '#9e9e9e', backgroundColor: '#f5f5f5' },
