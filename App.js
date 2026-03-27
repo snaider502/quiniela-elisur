@@ -8,6 +8,8 @@ import RankingScreen from './screens/RankingScreen';
 import PartidosScreen from './screens/PartidosScreen';
 import SimuladorScreen from './screens/SimuladorScreen';
 import ReglasScreen from './screens/ReglasScreen';
+import QuinielaScreen from './screens/QuinielaScreen';
+
 
 const Tab = createBottomTabNavigator();
 
@@ -40,6 +42,7 @@ export default function App() {
         <Tab.Screen name="Partidos" component={PartidosScreen} options={{ tabBarIcon: () => <Text>⚽</Text> }} />
         <Tab.Screen name="Simulador" component={SimuladorScreen} options={{ tabBarIcon: () => <Text>🧮</Text> }} />
         <Tab.Screen name="Reglas" component={ReglasScreen} options={{ tabBarIcon: () => <Text>📜</Text> }} />
+        <Tab.Screen name="Quiniela" component={QuinielaScreen} options={{ tabBarIcon: () => <Text>📝</Text> }} />
       </Tab.Navigator>
     </NavigationContainer>
   );
