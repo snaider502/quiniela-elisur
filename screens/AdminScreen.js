@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { calcularPuntosPartido as calcularPuntosPartidoUtil } from '../utils/calcularPuntos';
 
 const BANDERAS = {
   'méxico': 'mx', 'sudáfrica': 'za', 'corea del sur': 'kr',
@@ -109,35 +110,47 @@ await cargarResultadosBonos();
       goles_local: parseInt(res.local),
       goles_visita: parseInt(res.visita),
     }, { onConflict: 'partido_id' });
-
+await enviarMensajeWhatsApp(
+  `⚽ QUINIELA MUNDIAL 2026\n\nNuevo resultado registrado:\n🏟️ ${partido.titulo}\n📊 Marcador: ${res.local} - ${res.visita}\n\n¡Revisa tu posición en la app! 🏆`
+);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
       await calcularPuntosPartido(partido);
       await guardarHistorialRanking();
+      
       Alert.alert('✅ Listo', 'Resultado guardado y puntos calculados');
     }
     setGuardando(null);
   }
 
-  async function calcularPuntosPartido(partido) {
-    const res = resultados[partido.id];
-    if (!res) return;
-    const { data: preds } = await supabase.from('predicciones').select('*').eq('partido_id', partido.id);
-    if (!preds || preds.length === 0) return;
-    for (const pred of preds) {
-      const r = [parseInt(res.local), parseInt(res.visita)];
-      const p = [pred.goles_local, pred.goles_visita];
-      let pts = 0; let tipo = 'wrong';
-      if (r[0] === p[0] && r[1] === p[1]) { pts = 5; tipo = 'exact'; }
-      else if (Math.sign(r[0] - r[1]) === Math.sign(p[0] - p[1])) {
-        pts = Math.max(1, 5 - (Math.abs(r[0] - p[0]) + Math.abs(r[1] - p[1]))); tipo = 'winner';
-      }
-      await supabase.from('puntos').upsert({
-        usuario_id: pred.usuario_id, partido_id: partido.id, puntos: pts, tipo_acierto: tipo,
-      }, { onConflict: 'usuario_id,partido_id' });
-    }
+ async function calcularPuntosPartido(partido) {
+  const res = resultados[partido.id];
+  if (!res) return;
+
+  const { data: preds } = await supabase
+    .from('predicciones')
+    .select('*')
+    .eq('partido_id', partido.id);
+
+  if (!preds || preds.length === 0) return;
+
+  for (const pred of preds) {
+    const { pts, tipo } = calcularPuntosPartidoUtil(
+      parseInt(res.local),
+      parseInt(res.visita),
+      pred.goles_local,
+      pred.goles_visita
+    );
+
+    await supabase.from('puntos').upsert({
+      usuario_id: pred.usuario_id,
+      partido_id: partido.id,
+      puntos: pts,
+      tipo_acierto: tipo,
+    }, { onConflict: 'usuario_id,partido_id,tipo_acierto' });
   }
+}
 
   async function guardarHistorialRanking() {
     const { data: ranking } = await supabase.from('ranking_view').select('*');
@@ -148,6 +161,17 @@ await cargarResultadosBonos();
       });
     }
   }
+
+async function enviarMensajeWhatsApp(mensaje) {
+  try {
+    const phone = '50242451548';
+    const apikey = '6717176';
+    const texto = encodeURIComponent(mensaje);
+    await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${texto}&apikey=${apikey}`);
+  } catch (e) {
+    console.log('Error WhatsApp:', e);
+  }
+}
 
   async function activarUsuario(userId) {
     const { error } = await supabase.from('usuarios').update({ activo: true }).eq('id', userId);
