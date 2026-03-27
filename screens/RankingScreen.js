@@ -75,13 +75,13 @@ export default function RankingScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
   <View style={styles.headerContent}>
-    <Text style={styles.headerText}>⚽ Quiniela Mundial 2026</Text>
+    <Text style={styles.headerText}>🏆 Quiniela Mundial 2026</Text>
     <Text style={styles.headerSub}>FIFA World Cup 2026</Text>
   </View>
   <TouchableOpacity 
     style={styles.salirBtn}
     onPress={() => supabase.auth.signOut()}>
-    <Text style={styles.salirIcono}>⏻</Text>
+    <Text style={styles.salirIcono}>🏃</Text>
     <Text style={styles.salirTxt}>Salir</Text>
   </TouchableOpacity>
 </View>

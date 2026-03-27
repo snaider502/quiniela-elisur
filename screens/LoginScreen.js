@@ -35,7 +35,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.card}>
-        <Text style={styles.logo}>⚽</Text>
+        <Text style={styles.logo}>🏆</Text>
         <Text style={styles.titulo}>Quiniela Mundial 2026</Text>
         <Text style={styles.subtitulo}>{modo === 'login' ? 'Inicia sesión' : 'Crea tu cuenta'}</Text>
 

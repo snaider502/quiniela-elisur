@@ -120,14 +120,12 @@ export default function PartidosScreen() {
     ? calcularTablaGrupo(partidosFiltrados, resultadosMap)
     : [];
 
-  function formatearFecha(fecha) {
-    if (!fecha) return '';
-    const d = new Date(fecha);
-    return d.getDate().toString().padStart(2, '0') + '/' +
-      (d.getMonth() + 1).toString().padStart(2, '0') + ' ' +
-      d.getHours().toString().padStart(2, '0') + ':' +
-      d.getMinutes().toString().padStart(2, '0');
-  }
+ function formatearFecha(fecha) {
+  if (!fecha) return '';
+  const partes = fecha.split('T')[0].split('-');
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
+}
 
   if (loading) return (
     <View style={styles.center}>

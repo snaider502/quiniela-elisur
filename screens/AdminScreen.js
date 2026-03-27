@@ -35,6 +35,8 @@ export default function AdminScreen() {
   const [equiposPendientes, setEquiposPendientes] = useState([]);
   const [equipoEditar, setEquipoEditar] = useState('');
   const [equipoNuevo, setEquipoNuevo] = useState('');
+  const [configMap, setConfigMap] = useState({});
+  const [nuevoConfigMap, setNuevoConfigMap] = useState({});
 
   useEffect(() => {
     verificarAdmin();
@@ -70,6 +72,7 @@ export default function AdminScreen() {
       });
       setResultados(map);
     }
+    await cargarConfigFases();
     if (u.data) setUsuarios(u.data);
     await cargarEquiposPendientes();
     const { data: config } = await supabase
@@ -166,6 +169,26 @@ export default function AdminScreen() {
     }
   }
 
+async function cargarConfigFases() {
+  const { data } = await supabase.from('configuracion').select('*');
+  if (data) {
+    const map = {};
+    data.forEach(c => { map[c.clave] = c.valor; });
+    setConfigMap(map);
+    setNuevoConfigMap(map);
+  }
+}
+
+async function toggleFase(clave, fechaClave, nuevoValor) {
+  const fechaLimiteFase = nuevoConfigMap[fechaClave];
+  await supabase.from('configuracion').update({ valor: nuevoValor.toString() }).eq('clave', clave);
+  if (fechaLimiteFase) {
+    await supabase.from('configuracion').update({ valor: fechaLimiteFase }).eq('clave', fechaClave);
+  }
+  await cargarConfigFases();
+  Alert.alert('✅ Listo', `Fase ${nuevoValor ? 'habilitada' : 'deshabilitada'}`);
+}
+
 async function cargarEquiposPendientes() {
   const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
   const pendientes = [];
@@ -197,10 +220,11 @@ async function actualizarEquipo() {
 }
 
   function formatearFecha(fecha) {
-    if (!fecha) return '';
-    const d = new Date(fecha);
-    return d.getDate().toString().padStart(2, '0') + '/' + (d.getMonth() + 1).toString().padStart(2, '0');
-  }
+  if (!fecha) return '';
+  const partes = fecha.split('T')[0].split('-');
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
+}
 
   if (loading) return (
     <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>
@@ -386,27 +410,65 @@ async function actualizarEquipo() {
       )}
 
       {tab === 'config' && (
-        <ScrollView style={{ padding: 16 }}>
-          <View style={styles.configCard}>
-            <Text style={styles.configTitle}>📅 Fecha límite de quiniela</Text>
-            <Text style={styles.configDesc}>
-              Los participantes no podrán modificar sus predicciones después de esta fecha y hora.
-            </Text>
-            <Text style={styles.configActual}>Actual: {fechaLimite}</Text>
-            <TextInput
-              style={styles.configInput}
-              value={nuevaFechaLimite}
-              onChangeText={setNuevaFechaLimite}
-              placeholder="YYYY-MM-DD HH:MM:SS"
-              autoCapitalize="none"
-            />
-            <Text style={styles.configHint}>Ejemplo: 2026-06-11 14:00:00</Text>
-            <TouchableOpacity style={styles.configBtn} onPress={guardarFechaLimite}>
-              <Text style={styles.guardarTxt}>💾 Guardar fecha límite</Text>
+  <ScrollView style={{ padding: 16 }}>
+    <View style={styles.configCard}>
+      <Text style={styles.configTitle}>📅 Fecha límite fase de grupos</Text>
+      <Text style={styles.configDesc}>
+        Los participantes no podrán modificar predicciones de grupos después de esta fecha.
+      </Text>
+      <Text style={styles.configActual}>Actual: {fechaLimite}</Text>
+      <TextInput
+        style={styles.configInput}
+        value={nuevaFechaLimite}
+        onChangeText={setNuevaFechaLimite}
+        placeholder="YYYY-MM-DD HH:MM:SS"
+        autoCapitalize="none"
+      />
+      <Text style={styles.configHint}>Ejemplo: 2026-06-11 12:00:00</Text>
+      <TouchableOpacity style={styles.configBtn} onPress={guardarFechaLimite}>
+        <Text style={styles.guardarTxt}>💾 Guardar fecha límite grupos</Text>
+      </TouchableOpacity>
+    </View>
+
+    <View style={[styles.configCard, { marginTop: 12 }]}>
+      <Text style={styles.configTitle}>🏆 Habilitar Fases Eliminatorias</Text>
+      <Text style={styles.configDesc}>
+        Activa cada fase cuando llegue el momento. Al activar, los participantes podrán llenar sus predicciones.
+      </Text>
+      {[
+        { clave: 'fase_r16_habilitada', fechaClave: 'fecha_limite_r16', label: 'Fase de 32 (R16)' },
+        { clave: 'fase_r8_habilitada', fechaClave: 'fecha_limite_r8', label: 'Fase de 16 (R8)' },
+        { clave: 'fase_r4_habilitada', fechaClave: 'fecha_limite_r4', label: 'Cuartos de Final (R4)' },
+        { clave: 'fase_semi_habilitada', fechaClave: 'fecha_limite_semi', label: 'Semifinales' },
+        { clave: 'fase_final_habilitada', fechaClave: 'fecha_limite_final', label: 'Final' },
+{ clave: 'fase_tercer_habilitada', fechaClave: 'fecha_limite_tercer', label: '3er y 4to Lugar' },
+
+      ].map(fase => {
+        const habilitada = configMap[fase.clave] === 'true';
+        const fechaFase = configMap[fase.fechaClave] || '';
+        return (
+          <View key={fase.clave} style={styles.faseRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.faseLabel}>{fase.label}</Text>
+              <TextInput
+                style={styles.faseFechaInput}
+                value={nuevoConfigMap[fase.fechaClave] || fechaFase}
+                onChangeText={v => setNuevoConfigMap(prev => ({ ...prev, [fase.fechaClave]: v }))}
+                placeholder="Fecha límite YYYY-MM-DD HH:MM:SS"
+                autoCapitalize="none"
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.faseBtn, habilitada ? styles.faseBtnActivo : styles.faseBtnInactivo]}
+              onPress={() => toggleFase(fase.clave, fase.fechaClave, !habilitada)}>
+              <Text style={styles.faseBtnTxt}>{habilitada ? '✅ ON' : '⛔ OFF'}</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      )}
+        );
+      })}
+    </View>
+  </ScrollView>
+)}
     </View>
   );
 }
@@ -461,4 +523,11 @@ equipoCodigoTxt: { fontSize: 15, fontWeight: 'bold', color: '#333' },
 equipoPendienteTxt: { fontSize: 11, color: '#f9a825' },
 equipoEditarBtn: { backgroundColor: '#1a237e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
 equipoFormCard: { backgroundColor: '#f0f2f5', borderRadius: 10, padding: 14, marginTop: 14 },
+faseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+faseLabel: { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 4 },
+faseFechaInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, padding: 6, fontSize: 11, color: '#333' },
+faseBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth: 70, alignItems: 'center' },
+faseBtnActivo: { backgroundColor: '#2e7d32' },
+faseBtnInactivo: { backgroundColor: '#888' },
+faseBtnTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 });

@@ -15,6 +15,7 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
 };
 
 function getBandera(pais) {
@@ -34,14 +35,24 @@ function getColorStyle(pred, resultado, partido) {
   return null;
 }
 
+const GRUPOS_VALIDOS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+const FASES_MAP = {
+  'Fase eliminatoria 16': { hab: 'fase_r16_habilitada', limite: 'fecha_limite_r16' },
+  'Fase eliminatoria 8':  { hab: 'fase_r8_habilitada',  limite: 'fecha_limite_r8' },
+  'Fase eliminatoria 4':  { hab: 'fase_r4_habilitada',  limite: 'fecha_limite_r4' },
+  'SEMI-FINAL':           { hab: 'fase_semi_habilitada', limite: 'fecha_limite_semi' },
+  'TERCER LUGAR':         { hab: 'fase_tercer_habilitada', limite: 'fecha_limite_tercer' },
+  'FINAL':                { hab: 'fase_final_habilitada', limite: 'fecha_limite_final' },
+};
+
 export default function QuinielaScreen() {
   const [partidos, setPartidos] = useState([]);
   const [predicciones, setPredicciones] = useState({});
   const [resultados, setResultados] = useState({});
+  const [configuracion, setConfiguracion] = useState({});
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [fechaLimite, setFechaLimite] = useState(null);
 
   useEffect(() => {
     iniciar();
@@ -51,10 +62,12 @@ export default function QuinielaScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUserId(user.id);
-      await cargarPartidos();
-      await cargarPredicciones(user.id);
-      await cargarResultados();
-      await cargarFechaLimite();
+      await Promise.all([
+        cargarPartidos(),
+        cargarPredicciones(user.id),
+        cargarResultados(),
+        cargarConfiguracion(),
+      ]);
     }
     setLoading(false);
   }
@@ -69,10 +82,7 @@ export default function QuinielaScreen() {
   }
 
   async function cargarPredicciones(uid) {
-    const { data } = await supabase
-      .from('predicciones')
-      .select('*')
-      .eq('usuario_id', uid);
+    const { data } = await supabase.from('predicciones').select('*').eq('usuario_id', uid);
     if (data) {
       const map = {};
       data.forEach(p => {
@@ -94,20 +104,40 @@ export default function QuinielaScreen() {
     }
   }
 
-  async function cargarFechaLimite() {
-    const { data } = await supabase
-      .from('configuracion')
-      .select('valor')
-      .eq('clave', 'fecha_limite')
-      .single();
-    if (data) setFechaLimite(new Date(data.valor));
+  async function cargarConfiguracion() {
+    const { data } = await supabase.from('configuracion').select('*');
+    if (data) {
+      const map = {};
+      data.forEach(c => { map[c.clave] = c.valor; });
+      setConfiguracion(map);
+    }
   }
 
   function estaHabilitado(partido) {
     const tieneResultado = !!resultados[partido.id];
     if (tieneResultado) return false;
-    if (fechaLimite && new Date() > fechaLimite) return false;
+    const ahora = new Date();
+    const grupo = partido.grupo;
+
+    if (GRUPOS_VALIDOS.includes(grupo)) {
+      const limite = configuracion['fecha_limite'];
+      if (limite && ahora > new Date(limite)) return false;
+      return true;
+    }
+
+    const fase = FASES_MAP[grupo];
+    if (!fase) return false;
+    if (configuracion[fase.hab] !== 'true') return false;
+    const limite = configuracion[fase.limite];
+    if (limite && ahora > new Date(limite)) return false;
     return true;
+  }
+
+  function esFaseVisible(grupo) {
+    if (GRUPOS_VALIDOS.includes(grupo)) return true;
+    const fase = FASES_MAP[grupo];
+    if (!fase) return false;
+    return configuracion[fase.hab] === 'true';
   }
 
   function setPred(partidoId, campo, valor) {
@@ -118,14 +148,11 @@ export default function QuinielaScreen() {
   }
 
   async function guardarTodo() {
-    if (fechaLimite && new Date() > fechaLimite) {
-      Alert.alert('Tiempo agotado', 'El plazo para ingresar predicciones ha vencido.');
-      return;
-    }
     setGuardando(true);
     let guardados = 0;
     let errores = 0;
     for (const partido of partidos) {
+      if (!esFaseVisible(partido.grupo)) continue;
       const pred = predicciones[partido.id];
       if (!pred || pred.local === '' || pred.visita === '') continue;
       if (!estaHabilitado(partido)) continue;
@@ -146,10 +173,13 @@ export default function QuinielaScreen() {
 
   function formatearFecha(fecha) {
     if (!fecha) return '';
-    const d = new Date(fecha);
-    return d.getDate().toString().padStart(2, '0') + '/' +
-      (d.getMonth() + 1).toString().padStart(2, '0');
+    const partes = fecha.split('T')[0].split('-');
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
   }
+
+  const partidosVisibles = partidos.filter(p => esFaseVisible(p.grupo));
+  const hayAlgoHabilitado = partidosVisibles.some(p => estaHabilitado(p));
 
   if (loading) return (
     <View style={styles.center}>
@@ -157,23 +187,21 @@ export default function QuinielaScreen() {
     </View>
   );
 
-  const quinielaHabilitada = !fechaLimite || new Date() <= fechaLimite;
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>📝 Mi Quiniela</Text>
-        {fechaLimite && (
+        {configuracion['fecha_limite'] && (
           <Text style={styles.headerSub}>
-            {quinielaHabilitada
-              ? `Cierra: ${formatearFecha(fechaLimite)}`
-              : '🔒 Plazo vencido'}
+            {new Date() <= new Date(configuracion['fecha_limite'])
+              ? `Grupos cierran: ${configuracion['fecha_limite']?.split(' ')[0]}`
+              : '🔒 Fase de grupos cerrada'}
           </Text>
         )}
       </View>
 
       <FlatList
-        data={partidos}
+        data={partidosVisibles}
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
         renderItem={({ item }) => {
@@ -186,17 +214,19 @@ export default function QuinielaScreen() {
           return (
             <View style={[styles.card, color?.card, !habilitado && !tieneResultado && styles.cardCerrado]}>
               <View style={styles.cardTop}>
-                <Text style={styles.grupoBadge}>Grupo {item.grupo}</Text>
+                <Text style={styles.grupoBadge}>
+                  {GRUPOS_VALIDOS.includes(item.grupo) ? `Grupo ${item.grupo}` : item.grupo}
+                </Text>
                 <Text style={styles.fecha}>{formatearFecha(item.fecha)}</Text>
                 <View style={[styles.resultadoReal, !tieneResultado && styles.resultadoPendiente]}>
-                <Text style={[styles.resultadoRealTxt, !tieneResultado && styles.resultadoPendienteTxt]}>
-                  {tieneResultado
-                    ? `${resultado.goles_local} - ${resultado.goles_visita}`
-                    : 'Pendiente'}
-                </Text>
-              </View>
+                  <Text style={[styles.resultadoRealTxt, !tieneResultado && styles.resultadoPendienteTxt]}>
+                    {tieneResultado
+                      ? `${resultado.goles_local} - ${resultado.goles_visita}`
+                      : 'Pendiente'}
+                  </Text>
+                </View>
                 {!habilitado && !tieneResultado && (
-                  <Text style={styles.cerradoTxt}>🔒 Cerrado</Text>
+                  <Text style={styles.cerradoTxt}>🔒</Text>
                 )}
                 {color?.pts !== undefined && (
                   <Text style={styles.ptsLabel}>+{color.pts} pts</Text>
@@ -214,9 +244,7 @@ export default function QuinielaScreen() {
                     style={[styles.input, !habilitado && styles.inputDisabled]}
                     keyboardType="numeric"
                     maxLength={2}
-                    value={tieneResultado
-                      ? resultado.goles_local.toString()
-                      : pred.local}
+                    value={tieneResultado ? resultado.goles_local.toString() : pred.local}
                     onChangeText={v => habilitado && setPred(item.id, 'local', v)}
                     placeholder="0"
                     editable={habilitado}
@@ -226,9 +254,7 @@ export default function QuinielaScreen() {
                     style={[styles.input, !habilitado && styles.inputDisabled]}
                     keyboardType="numeric"
                     maxLength={2}
-                    value={tieneResultado
-                      ? resultado.goles_visita.toString()
-                      : pred.visita}
+                    value={tieneResultado ? resultado.goles_visita.toString() : pred.visita}
                     onChangeText={v => habilitado && setPred(item.id, 'visita', v)}
                     placeholder="0"
                     editable={habilitado}
@@ -248,7 +274,7 @@ export default function QuinielaScreen() {
         }}
       />
 
-      {quinielaHabilitada && (
+      {hayAlgoHabilitado && (
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.guardarBtn}
@@ -275,13 +301,15 @@ const styles = StyleSheet.create({
   cardExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
   cardWinner: { backgroundColor: '#fffde7', borderLeftWidth: 4, borderLeftColor: '#f9a825' },
   cardWrong: { backgroundColor: '#ffebee', borderLeftWidth: 4, borderLeftColor: '#c62828' },
-  cardCerrado: { opacity: 0.7 },
+  cardCerrado: { opacity: 0.6 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
   grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   fecha: { fontSize: 11, color: '#888', flex: 1 },
   resultadoReal: { backgroundColor: '#212529', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  resultadoPendiente: { backgroundColor: '#f0f2f5' },
   resultadoRealTxt: { color: 'white', fontSize: 11, fontWeight: 'bold' },
-  cerradoTxt: { fontSize: 10, color: '#888' },
+  resultadoPendienteTxt: { color: '#888' },
+  cerradoTxt: { fontSize: 12 },
   ptsLabel: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
   cardMid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   equipoContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -294,6 +322,4 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#eee' },
   guardarBtn: { backgroundColor: '#2e7d32', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
-  resultadoPendiente: { backgroundColor: '#f0f2f5' },
-  resultadoPendienteTxt: { color: '#888' },
 });

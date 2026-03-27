@@ -1,6 +1,26 @@
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { ScrollView, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { supabase } from '../lib/supabase';
 
 export default function ReglasScreen() {
+  const [financiero, setFinanciero] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    cargarFinanciero();
+  }, []);
+
+  async function cargarFinanciero() {
+    const { data } = await supabase.from('resumen_financiero').select('*').single();
+    if (data) setFinanciero(data);
+    setLoading(false);
+  }
+
+  const total = financiero?.total_recaudado || 0;
+  const premio1 = financiero?.premio_1 || 0;
+  const premio2 = financiero?.premio_2 || 0;
+  const premio3 = financiero?.premio_3 || 0;
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -8,9 +28,37 @@ export default function ReglasScreen() {
       </View>
 
       <View style={styles.premioCard}>
-        <Text style={styles.premioTitle}>Total Recaudado</Text>
-        <Text style={styles.premioMonto}>Q 0.00</Text>
-        <Text style={styles.premioSub}>100% destinado a premios</Text>
+        <Text style={styles.premioLabel}>Total Recaudado</Text>
+        {loading
+          ? <ActivityIndicator color="white" style={{ marginVertical: 8 }} />
+          : <Text style={styles.premioMonto}>Q {total.toLocaleString('es-GT')}.00</Text>
+        }
+        <Text style={styles.premioSub}>{financiero?.total_usuarios || 0} participantes × Q200.00</Text>
+      </View>
+
+      <View style={styles.seccion}>
+        <Text style={styles.seccionTitle}>💰 Bolsa de Premios</Text>
+        <View style={styles.premioFila}>
+          <View style={styles.premioInfo}>
+            <Text style={styles.premioPos}>🥇 1er Lugar</Text>
+            <Text style={styles.premioPct}>60%</Text>
+          </View>
+          <Text style={styles.premioQ}>Q {premio1.toLocaleString('es-GT')}.00</Text>
+        </View>
+        <View style={styles.premioFila}>
+          <View style={styles.premioInfo}>
+            <Text style={styles.premioPos}>🥈 2do Lugar</Text>
+            <Text style={styles.premioPct}>25%</Text>
+          </View>
+          <Text style={styles.premioQ}>Q {premio2.toLocaleString('es-GT')}.00</Text>
+        </View>
+        <View style={styles.premioFila}>
+          <View style={styles.premioInfo}>
+            <Text style={styles.premioPos}>🥉 3er Lugar</Text>
+            <Text style={styles.premioPct}>15%</Text>
+          </View>
+          <Text style={styles.premioQ}>Q {premio3.toLocaleString('es-GT')}.00</Text>
+        </View>
       </View>
 
       <View style={styles.seccion}>
@@ -50,7 +98,7 @@ export default function ReglasScreen() {
             { label: '3er Lugar', pts: 10 },
             { label: '4to Lugar', pts: 5 },
             { label: 'Líder de Grupo', pts: 10 },
-            { label: 'Mejor 3ero', pts: 5 },
+            { label: 'Mejor Tercero', pts: 5 },
             { label: 'Goleador', pts: 15 },
             { label: 'Portero Menos Vencido', pts: 15 },
           ].map((b, i) => (
@@ -63,24 +111,8 @@ export default function ReglasScreen() {
       </View>
 
       <View style={styles.seccion}>
-        <Text style={styles.seccionTitle}>💰 Bolsa de Premios</Text>
-        {[
-          { pos: '🥇 1er Lugar', pct: '60%' },
-          { pos: '🥈 2do Lugar', pct: '25%' },
-          { pos: '🥉 3er Lugar', pct: '15%' },
-        ].map((p, i) => (
-          <View key={i} style={styles.premioFila}>
-            <Text style={styles.premioPos}>{p.pos}</Text>
-            <View style={styles.pctBadge}>
-              <Text style={styles.pctTxt}>{p.pct}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.seccion}>
         <Text style={styles.seccionTitle}>📋 Disposiciones Generales</Text>
-        <Text style={styles.regla}>⏱️ <Text style={styles.bold}>Tiempos Extras:</Text> El marcador válido es el de los 90 minutos reglamentarios + reposición.</Text>
+        <Text style={styles.regla}>⏱️ <Text style={styles.bold}>Tiempos Extras:</Text> El marcador válido es el de los 90 minutos reglamentarios.</Text>
         <Text style={styles.regla}>✅ <Text style={styles.bold}>Validación:</Text> Es responsabilidad del participante verificar que sus datos sean correctos.</Text>
         <Text style={styles.regla}>⚖️ <Text style={styles.bold}>Autoridad:</Text> Cualquier situación no prevista será resuelta por el administrador (Snaider Santizo).</Text>
       </View>
@@ -95,11 +127,16 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   premioCard: { backgroundColor: '#2e7d32', margin: 12, borderRadius: 12, padding: 20, alignItems: 'center' },
-  premioTitle: { color: 'rgba(255,255,255,0.8)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
+  premioLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
   premioMonto: { color: 'white', fontSize: 32, fontWeight: 'bold', marginVertical: 4 },
   premioSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
   seccion: { backgroundColor: 'white', margin: 12, marginTop: 0, borderRadius: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
   seccionTitle: { fontSize: 15, fontWeight: 'bold', color: '#2e7d32', marginBottom: 12, textTransform: 'uppercase' },
+  premioFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  premioInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  premioPos: { fontSize: 14, color: '#333' },
+  premioPct: { backgroundColor: '#2e7d32', color: 'white', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, fontSize: 11, fontWeight: 'bold' },
+  premioQ: { fontSize: 16, fontWeight: 'bold', color: '#2e7d32' },
   nota: { fontSize: 12, color: '#666', marginBottom: 12, lineHeight: 18 },
   tabla: { gap: 10 },
   tablaFila: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
@@ -111,10 +148,6 @@ const styles = StyleSheet.create({
   bonoItem: { width: '47%', backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12, alignItems: 'center' },
   bonoPts: { fontSize: 24, fontWeight: 'bold', color: '#2e7d32' },
   bonoLabel: { fontSize: 11, color: '#555', textAlign: 'center', marginTop: 2 },
-  premioFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  premioPos: { fontSize: 14, color: '#333' },
-  pctBadge: { backgroundColor: '#2e7d32', paddingHorizontal: 12, paddingVertical: 3, borderRadius: 10 },
-  pctTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   regla: { fontSize: 12, color: '#555', marginBottom: 10, lineHeight: 18 },
   bold: { fontWeight: 'bold', color: '#333' },
 });
