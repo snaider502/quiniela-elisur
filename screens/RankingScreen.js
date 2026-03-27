@@ -74,11 +74,17 @@ export default function RankingScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>⚽ Quiniela Mundial 2026</Text>
-        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.salirBtn}>
-          <Text style={styles.salirTxt}>Salir</Text>
-        </TouchableOpacity>
-      </View>
+  <View style={styles.headerContent}>
+    <Text style={styles.headerText}>⚽ Quiniela Mundial 2026</Text>
+    <Text style={styles.headerSub}>FIFA World Cup 2026</Text>
+  </View>
+  <TouchableOpacity 
+    style={styles.salirBtn}
+    onPress={() => supabase.auth.signOut()}>
+    <Text style={styles.salirIcono}>⏻</Text>
+    <Text style={styles.salirTxt}>Salir</Text>
+  </TouchableOpacity>
+</View>
 
       <View style={styles.leyenda}>
         <Text style={styles.leyendaItem}><Text style={{ color: '#2e7d32' }}>▲</Text> Subió</Text>
@@ -113,12 +119,13 @@ export default function RankingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
+  header: { backgroundColor: '#2e7d32', padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerContent: { flex: 1 },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  salirBtn: { position: 'absolute', right: 16, top: 20 },
-  salirTxt: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+  headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 2 },
+  salirBtn: { backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', flexDirection: 'row', gap: 4 },
+  salirIcono: { color: 'white', fontSize: 14 },
+  salirTxt: { color: 'white', fontSize: 12, fontWeight: 'bold' },
   leyenda: { flexDirection: 'row', justifyContent: 'center', gap: 16, backgroundColor: 'white', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
   leyendaItem: { fontSize: 11, color: '#555' },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 16, marginBottom: 8, borderRadius: 10, elevation: 1 },
