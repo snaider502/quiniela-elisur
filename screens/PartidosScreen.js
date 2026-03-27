@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 const GRUPOS = ['TODOS', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'R16', 'R8', 'R4', 'SEMI', 'FINAL'];
@@ -40,42 +40,26 @@ function mapearGrupo(filtro) {
 
 function calcularTablaGrupo(partidos, resultados) {
   const equipos = {};
-
   partidos.forEach(partido => {
     const res = resultados[partido.id];
     const local = partido.equipo_local;
     const visita = partido.equipo_visita;
-
     if (!equipos[local]) equipos[local] = { nombre: local, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
     if (!equipos[visita]) equipos[visita] = { nombre: visita, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
-
     if (res) {
       const gl = res.goles_local;
       const gv = res.goles_visita;
-      equipos[local].pj++;
-      equipos[visita].pj++;
-      equipos[local].gf += gl;
-      equipos[local].gc += gv;
-      equipos[visita].gf += gv;
-      equipos[visita].gc += gl;
-
-      if (gl > gv) {
-        equipos[local].pg++; equipos[local].pts += 3;
-        equipos[visita].pp++;
-      } else if (gl < gv) {
-        equipos[visita].pg++; equipos[visita].pts += 3;
-        equipos[local].pp++;
-      } else {
-        equipos[local].pe++; equipos[local].pts++;
-        equipos[visita].pe++; equipos[visita].pts++;
-      }
+      equipos[local].pj++; equipos[visita].pj++;
+      equipos[local].gf += gl; equipos[local].gc += gv;
+      equipos[visita].gf += gv; equipos[visita].gc += gl;
+      if (gl > gv) { equipos[local].pg++; equipos[local].pts += 3; equipos[visita].pp++; }
+      else if (gl < gv) { equipos[visita].pg++; equipos[visita].pts += 3; equipos[local].pp++; }
+      else { equipos[local].pe++; equipos[local].pts++; equipos[visita].pe++; equipos[visita].pts++; }
     }
   });
-
   return Object.values(equipos).sort((a, b) => {
     if (b.pts !== a.pts) return b.pts - a.pts;
-    const difB = b.gf - b.gc;
-    const difA = a.gf - a.gc;
+    const difB = b.gf - b.gc; const difA = a.gf - a.gc;
     if (difB !== difA) return difB - difA;
     return b.gf - a.gf;
   });
@@ -87,25 +71,18 @@ export default function PartidosScreen() {
   const [loading, setLoading] = useState(true);
   const [grupoActivo, setGrupoActivo] = useState('TODOS');
 
-  useEffect(() => {
-    cargarPartidos();
-  }, []);
+  useEffect(() => { cargarPartidos(); }, []);
 
   async function cargarPartidos() {
     const [p, r] = await Promise.all([
       supabase.from('partidos').select('*').order('fecha', { ascending: true }),
       supabase.from('resultados').select('*'),
     ]);
-
     if (p.data) {
       const map = {};
       if (r.data) r.data.forEach(res => { map[res.partido_id] = res; });
       setResultadosMap(map);
-      const partidosConResultado = p.data.map(partido => ({
-        ...partido,
-        resultado: map[partido.id] || null,
-      }));
-      setPartidos(partidosConResultado);
+      setPartidos(p.data.map(partido => ({ ...partido, resultado: map[partido.id] || null })));
     }
     setLoading(false);
   }
@@ -116,22 +93,16 @@ export default function PartidosScreen() {
     : partidos.filter(p => p.grupo === grupoReal);
 
   const esGrupoSimple = grupoActivo !== 'TODOS' && !FASES.includes(grupoReal);
-  const tablaGrupo = esGrupoSimple
-    ? calcularTablaGrupo(partidosFiltrados, resultadosMap)
-    : [];
+  const tablaGrupo = esGrupoSimple ? calcularTablaGrupo(partidosFiltrados, resultadosMap) : [];
 
- function formatearFecha(fecha) {
-  if (!fecha) return '';
-  const partes = fecha.split('T')[0].split('-');
-  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
-}
+  function formatearFecha(fecha) {
+    if (!fecha) return '';
+    const partes = fecha.split('T')[0].split('-');
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
+  }
 
-  if (loading) return (
-    <View style={styles.center}>
-      <ActivityIndicator size="large" color="#2e7d32" />
-    </View>
-  );
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
 
   return (
     <View style={styles.container}>
@@ -139,22 +110,18 @@ export default function PartidosScreen() {
         <Text style={styles.headerText}>⚽ Partidos Mundial 2026</Text>
       </View>
 
-      <FlatList
-        horizontal
-        data={GRUPOS}
-        keyExtractor={g => g}
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtros}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.filtroBtn, grupoActivo === item && styles.filtroBtnActivo]}
-            onPress={() => setGrupoActivo(item)}>
-            <Text style={[styles.filtroTxt, grupoActivo === item && styles.filtroTxtActivo]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
+      <View style={styles.filtrosContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtrosContent}>
+          {GRUPOS.map(g => (
+            <TouchableOpacity
+              key={g}
+              style={[styles.filtroBtn, grupoActivo === g && styles.filtroBtnActivo]}
+              onPress={() => setGrupoActivo(g)}>
+              <Text style={[styles.filtroTxt, grupoActivo === g && styles.filtroTxtActivo]}>{g}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <FlatList
         data={partidosFiltrados}
@@ -212,9 +179,7 @@ export default function PartidosScreen() {
               </View>
               <View style={[styles.scoreBox, item.resultado && styles.scoreBoxActivo]}>
                 <Text style={styles.scoreTxt}>
-                  {item.resultado
-                    ? `${item.resultado.goles_local} - ${item.resultado.goles_visita}`
-                    : 'vs'}
+                  {item.resultado ? `${item.resultado.goles_local} - ${item.resultado.goles_visita}` : 'vs'}
                 </Text>
               </View>
               <View style={[styles.equipoContainer, { flexDirection: 'row-reverse' }]}>
@@ -239,8 +204,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  filtros: { backgroundColor: 'white', paddingVertical: 10, paddingHorizontal: 8, maxHeight: 52 },
-  filtroBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
+  filtrosContainer: { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  filtrosContent: { paddingHorizontal: 8, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' },
+  filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4, height: 36, justifyContent: 'center' },
   filtroBtnActivo: { backgroundColor: '#2e7d32' },
   filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   filtroTxtActivo: { color: 'white' },

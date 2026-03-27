@@ -15,7 +15,10 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
 };
+
+const GRUPOS_VALIDOS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
 
 function getBandera(pais) {
   if (!pais) return null;
@@ -29,20 +32,20 @@ export default function SimuladorScreen() {
   const [predicciones, setPredicciones] = useState([]);
   const [resultados, setResultados] = useState({});
   const [marcadores, setMarcadores] = useState({});
+  const [rankingSimulado, setRankingSimulado] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [simulando, setSimulando] = useState(false);
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
+  useEffect(() => { cargarDatos(); }, []);
 
   async function cargarDatos() {
     const [p, u, pred, res] = await Promise.all([
-      supabase.from('partidos').select('*').order('fecha', { ascending: true }),
+      supabase.from('partidos').select('*').in('grupo', GRUPOS_VALIDOS).order('fecha', { ascending: true }),
       supabase.from('ranking_view').select('*'),
       supabase.from('predicciones').select('*'),
       supabase.from('resultados').select('*'),
     ]);
-    if (p.data) setPartidos(p.data.filter(x => x.tipo === 'partido'));
+    if (p.data) setPartidos(p.data);
     if (u.data) setUsuarios(u.data);
     if (pred.data) setPredicciones(pred.data);
     if (res.data) {
@@ -62,8 +65,9 @@ export default function SimuladorScreen() {
     }));
   }
 
-  function calcularRankingSimulado() {
-    return usuarios.map(u => {
+  function simular() {
+    setSimulando(true);
+    const ranking = usuarios.map(u => {
       let puntosExtra = 0;
       Object.keys(marcadores).forEach(partidoId => {
         const m = marcadores[partidoId];
@@ -79,15 +83,14 @@ export default function SimuladorScreen() {
       });
       return { ...u, puntosExtra, total: (u.puntos || 0) + puntosExtra };
     }).sort((a, b) => b.total - a.total);
+    setRankingSimulado(ranking);
+    setSimulando(false);
   }
 
-  const rankingSimulado = calcularRankingSimulado();
   const medallas = ['🥇', '🥈', '🥉'];
 
   if (loading) return (
-    <View style={styles.center}>
-      <ActivityIndicator size="large" color="#2e7d32" />
-    </View>
+    <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>
   );
 
   return (
@@ -97,14 +100,14 @@ export default function SimuladorScreen() {
       </View>
 
       <View style={styles.alert}>
-        <Text style={styles.alertTxt}>Ingresa marcadores y mira cómo cambia la tabla en tiempo real</Text>
+        <Text style={styles.alertTxt}>Ingresa marcadores hipotéticos y toca Simular para ver cómo quedaría la tabla</Text>
       </View>
 
       <Text style={styles.seccionTitle}>Partidos Pendientes ({partidosPendientes.length})</Text>
 
       {partidosPendientes.length === 0 && (
         <View style={styles.noPartidos}>
-          <Text style={styles.noPartidosTxt}>No hay partidos pendientes</Text>
+          <Text style={styles.noPartidosTxt}>No hay partidos pendientes en fase de grupos</Text>
         </View>
       )}
 
@@ -134,7 +137,8 @@ export default function SimuladorScreen() {
                 maxLength={2}
                 value={m.local}
                 onChangeText={v => setMarcador(partido.id, 'local', v)}
-                placeholder="0"
+                placeholder="-"
+                placeholderTextColor="#ccc"
               />
               <Text style={styles.guion}>-</Text>
               <TextInput
@@ -143,7 +147,8 @@ export default function SimuladorScreen() {
                 maxLength={2}
                 value={m.visita}
                 onChangeText={v => setMarcador(partido.id, 'visita', v)}
-                placeholder="0"
+                placeholder="-"
+                placeholderTextColor="#ccc"
               />
             </View>
           </View>
@@ -151,24 +156,36 @@ export default function SimuladorScreen() {
       })}
 
       {partidosPendientes.length > 0 && (
-        <TouchableOpacity style={styles.resetBtn} onPress={() => setMarcadores({})}>
-          <Text style={styles.resetTxt}>Borrar Todo</Text>
-        </TouchableOpacity>
+        <View style={styles.botonesRow}>
+          <TouchableOpacity style={styles.simularBtn} onPress={simular} disabled={simulando}>
+            {simulando
+              ? <ActivityIndicator color="white" size="small" />
+              : <Text style={styles.simularTxt}>🔮 Simular</Text>
+            }
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.resetBtn} onPress={() => { setMarcadores({}); setRankingSimulado([]); }}>
+            <Text style={styles.resetTxt}>Borrar</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
-      <Text style={styles.seccionTitle}>Tabla Simulada</Text>
-      {rankingSimulado.map((u, i) => (
-        <View key={u.id} style={[styles.rankRow, i < 3 && styles.rankTop]}>
-          <Text style={styles.rankPos}>{medallas[i] || i + 1}</Text>
-          <Text style={styles.rankNombre}>{u.nombre}</Text>
-          <View style={styles.rankPuntos}>
-            <Text style={styles.rankTotal}>{u.total}</Text>
-            {u.puntosExtra > 0 && (
-              <Text style={styles.rankExtra}>+{u.puntosExtra}</Text>
-            )}
-          </View>
-        </View>
-      ))}
+      {rankingSimulado.length > 0 && (
+        <>
+          <Text style={styles.seccionTitle}>Tabla Simulada</Text>
+          {rankingSimulado.map((u, i) => (
+            <View key={u.id} style={[styles.rankRow, i < 3 && styles.rankTop]}>
+              <Text style={styles.rankPos}>{medallas[i] || i + 1}</Text>
+              <Text style={styles.rankNombre}>{u.nombre}</Text>
+              <View style={styles.rankPuntos}>
+                <Text style={styles.rankTotal}>{u.total}</Text>
+                {u.puntosExtra > 0 && (
+                  <Text style={styles.rankExtra}>+{u.puntosExtra}</Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </>
+      )}
 
       <View style={{ height: 30 }} />
     </ScrollView>
@@ -192,10 +209,13 @@ const styles = StyleSheet.create({
   teamName: { fontSize: 12, fontWeight: 'bold', color: '#333', flex: 1 },
   vs: { fontSize: 10, color: '#999', marginLeft: 26 },
   inputs: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  input: { width: 36, height: 36, borderWidth: 2, borderColor: '#ddd', borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
+  input: { width: 40, height: 40, borderWidth: 2, borderColor: '#ddd', borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
   guion: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  resetBtn: { backgroundColor: '#757575', borderRadius: 10, padding: 12, marginHorizontal: 12, marginTop: 4, marginBottom: 8, alignItems: 'center' },
-  resetTxt: { color: 'white', fontWeight: 'bold', fontSize: 13 },
+  botonesRow: { flexDirection: 'row', gap: 10, marginHorizontal: 12, marginTop: 8, marginBottom: 4 },
+  simularBtn: { flex: 1, backgroundColor: '#2e7d32', borderRadius: 10, padding: 14, alignItems: 'center' },
+  simularTxt: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+  resetBtn: { backgroundColor: '#757575', borderRadius: 10, padding: 14, paddingHorizontal: 20, alignItems: 'center' },
+  resetTxt: { color: 'white', fontWeight: 'bold', fontSize: 14 },
   rankRow: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginHorizontal: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', elevation: 1 },
   rankTop: { backgroundColor: '#f9f9f9' },
   rankPos: { fontSize: 18, width: 36 },
