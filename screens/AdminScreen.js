@@ -37,6 +37,8 @@ export default function AdminScreen() {
   const [equipoNuevo, setEquipoNuevo] = useState('');
   const [configMap, setConfigMap] = useState({});
   const [nuevoConfigMap, setNuevoConfigMap] = useState({});
+  const [equipos, setEquipos] = useState([]);
+const [resultadosBonos, setResultadosBonos] = useState({});
 
   useEffect(() => {
     verificarAdmin();
@@ -73,6 +75,8 @@ export default function AdminScreen() {
       setResultados(map);
     }
     await cargarConfigFases();
+    await cargarEquipos();
+await cargarResultadosBonos();
     if (u.data) setUsuarios(u.data);
     await cargarEquiposPendientes();
     const { data: config } = await supabase
@@ -189,6 +193,65 @@ async function toggleFase(clave, fechaClave, nuevoValor) {
   Alert.alert('✅ Listo', `Fase ${nuevoValor ? 'habilitada' : 'deshabilitada'}`);
 }
 
+async function cargarEquipos() {
+  const { data } = await supabase
+    .from('partidos')
+    .select('equipo_local, equipo_visita')
+    .in('grupo', ['A','B','C','D','E','F','G','H','I','J','K','L']);
+  if (data) {
+    const set = new Set();
+    data.forEach(p => { set.add(p.equipo_local); set.add(p.equipo_visita); });
+    setEquipos([...set].sort());
+  }
+}
+
+async function cargarResultadosBonos() {
+  const { data } = await supabase.from('configuracion').select('*');
+  if (data) {
+    const map = {};
+    data.forEach(c => { if (c.clave.startsWith('resultado_bono_')) map[c.clave] = c.valor; });
+    setResultadosBonos(map);
+  }
+}
+
+async function guardarResultadoBono(clave, valor) {
+  const claveCompleta = `resultado_bono_${clave}`;
+  const { error } = await supabase
+    .from('configuracion')
+    .upsert({ clave: claveCompleta, valor }, { onConflict: 'clave' });
+  if (error) Alert.alert('Error', error.message);
+  else {
+    setResultadosBonos(prev => ({ ...prev, [claveCompleta]: valor }));
+    await calcularPuntosBonos(clave, valor);
+    Alert.alert('✅ Listo', 'Resultado de bono guardado y puntos calculados');
+  }
+}
+
+async function calcularPuntosBonos(clave, valorReal) {
+  const { data: preds } = await supabase
+    .from('predicciones_bonos')
+    .select('*')
+    .eq('clave', clave);
+
+  if (!preds || preds.length === 0) return;
+
+  const puntosMap = {
+    'campeon': 30, 'subcampeon': 20, 'tercer_lugar': 10, 'cuarto_lugar': 5,
+    'goleador': 15, 'portero': 15,
+  };
+  const pts = clave.startsWith('lider_') ? 10 : (clave.startsWith('mejor_tercero') ? 5 : puntosMap[clave] || 0);
+
+  for (const pred of preds) {
+    if (pred.valor?.toLowerCase() !== valorReal?.toLowerCase()) continue;
+    await supabase.from('puntos').upsert({
+      usuario_id: pred.usuario_id,
+      partido_id: null,
+      puntos: pts,
+      tipo_acierto: `bono_${clave}`,
+    }, { onConflict: 'usuario_id,tipo_acierto' });
+  }
+}
+
 async function cargarEquiposPendientes() {
   const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
   const pendientes = [];
@@ -241,6 +304,11 @@ async function actualizarEquipo() {
       </View>
 
       <View style={styles.tabs}>
+        <TouchableOpacity
+  style={[styles.tabBtn, tab === 'bonos' && styles.tabBtnActivo]}
+  onPress={() => setTab('bonos')}>
+  <Text style={[styles.tabTxt, tab === 'bonos' && styles.tabTxtActivo]}>⭐</Text>
+</TouchableOpacity>
         <TouchableOpacity
         style={[styles.tabBtn, tab === 'equipos' && styles.tabBtnActivo]}
         onPress={() => setTab('equipos')}>
@@ -314,6 +382,108 @@ async function actualizarEquipo() {
           </View>
         </View>
       )}
+    </View>
+  </ScrollView>
+)}
+{tab === 'bonos' && (
+  <ScrollView style={{ padding: 16 }}>
+    {[
+      { clave: 'campeon', label: 'Campeón del Mundo', icon: '🏆' },
+      { clave: 'subcampeon', label: 'Subcampeón', icon: '🥈' },
+      { clave: 'tercer_lugar', label: '3er Lugar', icon: '🥉' },
+      { clave: 'cuarto_lugar', label: '4to Lugar', icon: '4️⃣' },
+      { clave: 'goleador', label: 'Selección Goleadora', icon: '⚽' },
+      { clave: 'portero', label: 'Portero Menos Vencido', icon: '🧤' },
+    ].map(bono => (
+      <View key={bono.clave} style={styles.bonoCard}>
+        <Text style={styles.bonoTitulo}>{bono.icon} {bono.label}</Text>
+        {resultadosBonos[`resultado_bono_${bono.clave}`] && (
+          <Text style={styles.bonoActual}>Actual: {resultadosBonos[`resultado_bono_${bono.clave}`]}</Text>
+        )}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+          {equipos.map(equipo => (
+            <TouchableOpacity
+              key={equipo}
+              style={[
+                styles.bonoEquipoBtn,
+                resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnActivo,
+              ]}
+              onPress={() => guardarResultadoBono(bono.clave, equipo)}>
+              {BANDERAS[equipo.toLowerCase()] && (
+                <Image
+                  source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }}
+                  style={styles.bandera} />
+              )}
+              <Text style={[
+                styles.bonoEquipoBtnTxt,
+                resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnTxtActivo,
+              ]} numberOfLines={1}>{equipo}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    ))}
+
+    <View style={[styles.bonoCard, { marginTop: 8 }]}>
+      <Text style={styles.bonoTitulo}>🥇 Líderes de Grupo</Text>
+      {['A','B','C','D','E','F','G','H','I','J','K','L'].map(grupo => (
+        <View key={grupo} style={styles.grupoBonoRow}>
+          <Text style={styles.grupoBonoLabel}>Grupo {grupo}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+            {equipos.map(equipo => (
+              <TouchableOpacity
+                key={equipo}
+                style={[
+                  styles.bonoEquipoBtnSmall,
+                  resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnActivo,
+                ]}
+                onPress={() => guardarResultadoBono(`lider_${grupo}`, equipo)}>
+                {BANDERAS[equipo.toLowerCase()] && (
+                  <Image
+                    source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }}
+                    style={{ width: 14, height: 10, borderRadius: 2 }} />
+                )}
+                <Text style={[
+                  styles.bonoEquipoBtnSmallTxt,
+                  resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnTxtActivo,
+                ]} numberOfLines={1}>{equipo}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      ))}
+    </View>
+
+    <View style={[styles.bonoCard, { marginTop: 8, marginBottom: 30 }]}>
+      <Text style={styles.bonoTitulo}>3️⃣ Mejores Terceros (selecciona 8)</Text>
+      <Text style={styles.bonoActual}>
+        Seleccionados: {Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length}/8
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+        {equipos.map(equipo => {
+          const yaSeleccionado = Object.values(resultadosBonos).includes(equipo) &&
+            Object.keys(resultadosBonos).some(k => k.startsWith('resultado_bono_mejor_tercero') && resultadosBonos[k] === equipo);
+          return (
+            <TouchableOpacity
+              key={equipo}
+              style={[styles.bonoEquipoBtnGrid, yaSeleccionado && styles.bonoEquipoBtnActivo]}
+              onPress={() => {
+                if (yaSeleccionado) return;
+                const count = Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length;
+                if (count >= 8) { Alert.alert('Máximo 8', 'Ya seleccionaste los 8 mejores terceros'); return; }
+                guardarResultadoBono(`mejor_tercero_${count + 1}`, equipo);
+              }}>
+              {BANDERAS[equipo.toLowerCase()] && (
+                <Image
+                  source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }}
+                  style={styles.bandera} />
+              )}
+              <Text style={[styles.bonoEquipoBtnTxt, yaSeleccionado && styles.bonoEquipoBtnTxtActivo]}
+                numberOfLines={1}>{equipo}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   </ScrollView>
 )}
@@ -530,4 +700,16 @@ faseBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth:
 faseBtnActivo: { backgroundColor: '#2e7d32' },
 faseBtnInactivo: { backgroundColor: '#888' },
 faseBtnTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+bonoCard: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
+bonoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#1a237e', marginBottom: 4 },
+bonoActual: { fontSize: 12, color: '#2e7d32', fontWeight: 'bold' },
+bonoEquipoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginRight: 6, minWidth: 80 },
+bonoEquipoBtnActivo: { backgroundColor: '#1a237e' },
+bonoEquipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
+bonoEquipoBtnTxtActivo: { color: 'white' },
+bonoEquipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5', marginRight: 4 },
+bonoEquipoBtnSmallTxt: { fontSize: 10, fontWeight: 'bold', color: '#333' },
+bonoEquipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
+grupoBonoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+grupoBonoLabel: { fontSize: 12, fontWeight: 'bold', color: '#1a237e', width: 60 },
 });

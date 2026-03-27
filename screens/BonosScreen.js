@@ -38,6 +38,7 @@ export default function BonosScreen() {
   const [equipos, setEquipos] = useState([]);
   const [equiposPorGrupo, setEquiposPorGrupo] = useState({});
   const [predicciones, setPredicciones] = useState({});
+  const [resultadosReales, setResultadosReales] = useState({});
   const [lideresGrupo, setLideresGrupo] = useState({});
   const [mejoresTerceros, setMejoresTerceros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,7 @@ export default function BonosScreen() {
         cargarEquipos(),
         cargarPredicciones(user.id),
         cargarFechaLimite(),
+        cargarResultadosReales(),
       ]);
     }
     setLoading(false);
@@ -87,10 +89,7 @@ export default function BonosScreen() {
   }
 
   async function cargarPredicciones(uid) {
-    const { data } = await supabase
-      .from('predicciones_bonos')
-      .select('*')
-      .eq('usuario_id', uid);
+    const { data } = await supabase.from('predicciones_bonos').select('*').eq('usuario_id', uid);
     if (data) {
       const map = {};
       data.forEach(p => { map[p.clave] = p.valor; });
@@ -111,7 +110,27 @@ export default function BonosScreen() {
     if (data) setFechaLimite(new Date(data.valor));
   }
 
+  async function cargarResultadosReales() {
+    const { data } = await supabase.from('configuracion').select('*');
+    if (data) {
+      const map = {};
+      data.forEach(c => {
+        if (c.clave.startsWith('resultado_bono_')) {
+          map[c.clave.replace('resultado_bono_', '')] = c.valor;
+        }
+      });
+      setResultadosReales(map);
+    }
+  }
+
   const habilitado = !fechaLimite || new Date() <= fechaLimite;
+
+  function getColorBono(clave, valorPrediccion) {
+    const real = resultadosReales[clave];
+    if (!real || !valorPrediccion) return null;
+    if (real.toLowerCase() === valorPrediccion.toLowerCase()) return 'exact';
+    return 'wrong';
+  }
 
   function seleccionarEquipo(clave, equipo) {
     if (!habilitado) return;
@@ -172,22 +191,32 @@ export default function BonosScreen() {
   function EquipoSelector({ clave, equiposLista }) {
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.equiposScroll}>
-        {equiposLista.map(equipo => (
-          <TouchableOpacity
-            key={equipo}
-            style={[
-              styles.equipoBtn,
-              predicciones[clave] === equipo && styles.equipoBtnActivo,
-              !habilitado && styles.equipoBtnDisabled,
-            ]}
-            onPress={() => seleccionarEquipo(clave, equipo)}>
-            {getBandera(equipo) && (
-              <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtn} />
-            )}
-            <Text style={[styles.equipoBtnTxt, predicciones[clave] === equipo && styles.equipoBtnTxtActivo]}
-              numberOfLines={1}>{equipo}</Text>
-          </TouchableOpacity>
-        ))}
+        {equiposLista.map(equipo => {
+          const seleccionado = predicciones[clave] === equipo;
+          const colorBono = seleccionado ? getColorBono(clave, equipo) : null;
+          return (
+            <TouchableOpacity
+              key={equipo}
+              style={[
+                styles.equipoBtn,
+                seleccionado && !colorBono && styles.equipoBtnSeleccionado,
+                colorBono === 'exact' && styles.equipoBtnExact,
+                colorBono === 'wrong' && styles.equipoBtnWrong,
+                !habilitado && styles.equipoBtnDisabled,
+              ]}
+              onPress={() => seleccionarEquipo(clave, equipo)}>
+              {getBandera(equipo) && (
+                <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtn} />
+              )}
+              <Text style={[
+                styles.equipoBtnTxt,
+                (seleccionado || colorBono) && styles.equipoBtnTxtActivo,
+              ]} numberOfLines={1}>{equipo}</Text>
+              {colorBono === 'exact' && <Text style={styles.checkIcon}>✓</Text>}
+              {colorBono === 'wrong' && <Text style={styles.wrongIcon}>✗</Text>}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     );
   }
@@ -203,26 +232,42 @@ export default function BonosScreen() {
         {!habilitado && <Text style={styles.headerSub}>🔒 Plazo vencido</Text>}
       </View>
 
-      {BONOS.map(bono => (
-        <View key={bono.clave} style={styles.seccion}>
-          <View style={styles.seccionHeader}>
-            <Text style={styles.seccionIcono}>{bono.icon}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.seccionTitulo}>{bono.label}</Text>
-              <Text style={styles.seccionPts}>+{bono.pts} puntos</Text>
-            </View>
-            {predicciones[bono.clave] && (
-              <View style={styles.seleccionadoBadge}>
-                {getBandera(predicciones[bono.clave]) && (
-                  <Image source={{ uri: getBandera(predicciones[bono.clave]) }} style={styles.banderaBadge} />
-                )}
-                <Text style={styles.seleccionadoTxt} numberOfLines={1}>{predicciones[bono.clave]}</Text>
+      {BONOS.map(bono => {
+        const colorCard = getColorBono(bono.clave, predicciones[bono.clave]);
+        return (
+          <View key={bono.clave} style={[
+            styles.seccion,
+            colorCard === 'exact' && styles.seccionExact,
+            colorCard === 'wrong' && styles.seccionWrong,
+          ]}>
+            <View style={styles.seccionHeader}>
+              <Text style={styles.seccionIcono}>{bono.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.seccionTitulo}>{bono.label}</Text>
+                <Text style={styles.seccionPts}>+{bono.pts} puntos</Text>
               </View>
-            )}
+              {predicciones[bono.clave] && (
+                <View style={[
+                  styles.seleccionadoBadge,
+                  colorCard === 'exact' && styles.badgeExact,
+                  colorCard === 'wrong' && styles.badgeWrong,
+                ]}>
+                  {getBandera(predicciones[bono.clave]) && (
+                    <Image source={{ uri: getBandera(predicciones[bono.clave]) }} style={styles.banderaBadge} />
+                  )}
+                  <Text style={[
+                    styles.seleccionadoTxt,
+                    colorCard === 'exact' && { color: '#1b5e20' },
+                    colorCard === 'wrong' && { color: '#b71c1c' },
+                  ]} numberOfLines={1}>{predicciones[bono.clave]}</Text>
+                  {colorCard === 'exact' && <Text style={{ color: '#1b5e20', fontWeight: 'bold' }}>+{bono.pts}pts</Text>}
+                </View>
+              )}
+            </View>
+            <EquipoSelector clave={bono.clave} equiposLista={equipos} />
           </View>
-          <EquipoSelector clave={bono.clave} equiposLista={equipos} />
-        </View>
-      ))}
+        );
+      })}
 
       <View style={styles.seccion}>
         <View style={styles.seccionHeader}>
@@ -232,29 +277,44 @@ export default function BonosScreen() {
             <Text style={styles.seccionPts}>+10 puntos por grupo acertado</Text>
           </View>
         </View>
-        {GRUPOS.map(grupo => (
-          <View key={grupo} style={styles.grupoRow}>
-            <Text style={styles.grupoLabel}>Grupo {grupo}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-              {(equiposPorGrupo[grupo] || []).map(equipo => (
-                <TouchableOpacity
-                  key={equipo}
-                  style={[
-                    styles.equipoBtnSmall,
-                    lideresGrupo[grupo] === equipo && styles.equipoBtnActivo,
-                    !habilitado && styles.equipoBtnDisabled,
-                  ]}
-                  onPress={() => seleccionarLider(grupo, equipo)}>
-                  {getBandera(equipo) && (
-                    <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtnSmall} />
-                  )}
-                  <Text style={[styles.equipoBtnSmallTxt, lideresGrupo[grupo] === equipo && styles.equipoBtnTxtActivo]}
-                    numberOfLines={1}>{equipo}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        ))}
+        {GRUPOS.map(grupo => {
+          const colorLider = getColorBono(`lider_${grupo}`, lideresGrupo[grupo]);
+          return (
+            <View key={grupo} style={[
+              styles.grupoRow,
+              colorLider === 'exact' && styles.grupoRowExact,
+              colorLider === 'wrong' && styles.grupoRowWrong,
+            ]}>
+              <Text style={styles.grupoLabel}>Grupo {grupo}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                {(equiposPorGrupo[grupo] || []).map(equipo => {
+                  const sel = lideresGrupo[grupo] === equipo;
+                  const color = sel ? getColorBono(`lider_${grupo}`, equipo) : null;
+                  return (
+                    <TouchableOpacity
+                      key={equipo}
+                      style={[
+                        styles.equipoBtnSmall,
+                        sel && !color && styles.equipoBtnSeleccionado,
+                        color === 'exact' && styles.equipoBtnExact,
+                        color === 'wrong' && styles.equipoBtnWrong,
+                        !habilitado && styles.equipoBtnDisabled,
+                      ]}
+                      onPress={() => seleccionarLider(grupo, equipo)}>
+                      {getBandera(equipo) && (
+                        <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtnSmall} />
+                      )}
+                      <Text style={[
+                        styles.equipoBtnSmallTxt,
+                        (sel || color) && styles.equipoBtnTxtActivo,
+                      ]} numberOfLines={1}>{equipo}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          );
+        })}
       </View>
 
       <View style={styles.seccion}>
@@ -266,22 +326,34 @@ export default function BonosScreen() {
           </View>
         </View>
         <View style={styles.equiposGrid}>
-          {equipos.map(equipo => (
-            <TouchableOpacity
-              key={equipo}
-              style={[
-                styles.equipoBtnGrid,
-                mejoresTerceros.includes(equipo) && styles.equipoBtnActivo,
-                !habilitado && styles.equipoBtnDisabled,
-              ]}
-              onPress={() => toggleMejorTercero(equipo)}>
-              {getBandera(equipo) && (
-                <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtn} />
-              )}
-              <Text style={[styles.equipoBtnTxt, mejoresTerceros.includes(equipo) && styles.equipoBtnTxtActivo]}
-                numberOfLines={1}>{equipo}</Text>
-            </TouchableOpacity>
-          ))}
+          {equipos.map(equipo => {
+            const sel = mejoresTerceros.includes(equipo);
+            const realTerceros = Object.keys(resultadosReales)
+              .filter(k => k.startsWith('mejor_tercero'))
+              .map(k => resultadosReales[k]?.toLowerCase());
+            const esAcierto = sel && realTerceros.includes(equipo.toLowerCase());
+            const esFallo = sel && realTerceros.length > 0 && !realTerceros.includes(equipo.toLowerCase());
+            return (
+              <TouchableOpacity
+                key={equipo}
+                style={[
+                  styles.equipoBtnGrid,
+                  sel && !esAcierto && !esFallo && styles.equipoBtnSeleccionado,
+                  esAcierto && styles.equipoBtnExact,
+                  esFallo && styles.equipoBtnWrong,
+                  !habilitado && styles.equipoBtnDisabled,
+                ]}
+                onPress={() => toggleMejorTercero(equipo)}>
+                {getBandera(equipo) && (
+                  <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtn} />
+                )}
+                <Text style={[
+                  styles.equipoBtnTxt,
+                  (sel || esAcierto) && styles.equipoBtnTxtActivo,
+                ]} numberOfLines={1}>{equipo}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -308,21 +380,31 @@ const styles = StyleSheet.create({
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 4 },
   seccion: { backgroundColor: 'white', margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, elevation: 2 },
+  seccionExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
+  seccionWrong: { backgroundColor: '#ffebee', borderLeftWidth: 4, borderLeftColor: '#c62828' },
   seccionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   seccionIcono: { fontSize: 24 },
   seccionTitulo: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   seccionPts: { fontSize: 11, color: '#f57f17', fontWeight: 'bold' },
-  seleccionadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, maxWidth: 120 },
+  seleccionadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, maxWidth: 140 },
+  badgeExact: { backgroundColor: '#c8e6c9' },
+  badgeWrong: { backgroundColor: '#ffcdd2' },
   banderaBadge: { width: 18, height: 12, borderRadius: 2 },
   seleccionadoTxt: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
   equiposScroll: { maxHeight: 60 },
   equipoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginRight: 6, minWidth: 80 },
-  equipoBtnActivo: { backgroundColor: '#2e7d32' },
+  equipoBtnSeleccionado: { backgroundColor: '#1565c0' },
+  equipoBtnExact: { backgroundColor: '#2e7d32' },
+  equipoBtnWrong: { backgroundColor: '#c62828' },
   equipoBtnDisabled: { opacity: 0.5 },
   equipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
   equipoBtnTxtActivo: { color: 'white' },
   banderaBtn: { width: 18, height: 12, borderRadius: 2 },
-  grupoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  checkIcon: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  wrongIcon: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  grupoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8, padding: 4, borderRadius: 8 },
+  grupoRowExact: { backgroundColor: '#e8f5e9' },
+  grupoRowWrong: { backgroundColor: '#ffebee' },
   grupoLabel: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', width: 55 },
   equipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5', marginRight: 4 },
   banderaBtnSmall: { width: 14, height: 10, borderRadius: 2 },
