@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { calcularPuntos } from '../utils/calcularPuntos';
 
 const BANDERAS = {
   'méxico': 'mx', 'sudáfrica': 'za', 'corea del sur': 'kr',
@@ -22,9 +23,21 @@ function getBandera(pais) {
   return code ? `https://flagcdn.com/h20/${code}.png` : null;
 }
 
+function getColorStyle(pred, resultado, partido) {
+  if (!pred || !resultado || pred.local === '' || pred.visita === '') return null;
+  const realStr = `${resultado.goles_local}-${resultado.goles_visita}`;
+  const predStr = `${pred.local}-${pred.visita}`;
+  const r = calcularPuntos(realStr, predStr, partido.titulo);
+  if (r.clase === 'exact') return { card: styles.cardExact, pts: r.pts };
+  if (r.clase === 'winner') return { card: styles.cardWinner, pts: r.pts };
+  if (r.clase === 'wrong') return { card: styles.cardWrong, pts: 0 };
+  return null;
+}
+
 export default function QuinielaScreen() {
   const [partidos, setPartidos] = useState([]);
   const [predicciones, setPredicciones] = useState({});
+  const [resultados, setResultados] = useState({});
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -39,19 +52,19 @@ export default function QuinielaScreen() {
       setUserId(user.id);
       await cargarPartidos();
       await cargarPredicciones(user.id);
+      await cargarResultados();
     }
     setLoading(false);
   }
 
   async function cargarPartidos() {
-  const { data, error } = await supabase
-    .from('partidos')
-    .select('*')
-    .eq('tipo', 'partido')
-    .order('fecha', { ascending: true });
-  if (error) console.log(error);
-  if (data) setPartidos(data);
-}
+    const { data } = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('tipo', 'partido')
+      .order('fecha', { ascending: true });
+    if (data) setPartidos(data);
+  }
 
   async function cargarPredicciones(uid) {
     const { data } = await supabase
@@ -70,6 +83,15 @@ export default function QuinielaScreen() {
     }
   }
 
+  async function cargarResultados() {
+    const { data } = await supabase.from('resultados').select('*');
+    if (data) {
+      const map = {};
+      data.forEach(r => { map[r.partido_id] = r; });
+      setResultados(map);
+    }
+  }
+
   function setPred(partidoId, campo, valor) {
     setPredicciones(prev => ({
       ...prev,
@@ -78,33 +100,28 @@ export default function QuinielaScreen() {
   }
 
   async function guardarTodo() {
-  setGuardando(true);
-  let guardados = 0;
-  let errores = 0;
-  let mensajeError = '';
+    setGuardando(true);
+    let guardados = 0;
+    let errores = 0;
 
-  for (const partido of partidos) {
-    const pred = predicciones[partido.id];
-    if (!pred || pred.local === '' || pred.visita === '') continue;
+    for (const partido of partidos) {
+      const pred = predicciones[partido.id];
+      if (!pred || pred.local === '' || pred.visita === '') continue;
+      const { error } = await supabase
+        .from('predicciones')
+        .upsert({
+          usuario_id: userId,
+          partido_id: partido.id,
+          goles_local: parseInt(pred.local),
+          goles_visita: parseInt(pred.visita),
+        }, { onConflict: 'usuario_id,partido_id' });
+      if (error) errores++;
+      else guardados++;
+    }
 
-    const { error } = await supabase
-      .from('predicciones')
-      .upsert({
-        usuario_id: userId,
-        partido_id: partido.id,
-        goles_local: parseInt(pred.local),
-        goles_visita: parseInt(pred.visita),
-      }, { onConflict: 'usuario_id,partido_id' });
-
-    if (error) {
-      errores++;
-      mensajeError = error.message;
-    } else guardados++;
+    setGuardando(false);
+    Alert.alert('Listo', `Se guardaron ${guardados} predicciones.${errores > 0 ? ` ${errores} errores.` : ''}`, [{ text: 'OK' }]);
   }
-
-  setGuardando(false);
-  Alert.alert('Resultado', `Guardados: ${guardados} | Errores: ${errores}\n${mensajeError}`);
-}
 
   function formatearFecha(fecha) {
     if (!fecha) return '';
@@ -131,11 +148,25 @@ export default function QuinielaScreen() {
         contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
         renderItem={({ item }) => {
           const pred = predicciones[item.id] || { local: '', visita: '' };
+          const resultado = resultados[item.id];
+          const color = getColorStyle(pred, resultado, item);
+          const tieneResultado = !!resultado;
+
           return (
-            <View style={styles.card}>
+            <View style={[styles.card, color?.card]}>
               <View style={styles.cardTop}>
                 <Text style={styles.grupoBadge}>Grupo {item.grupo}</Text>
                 <Text style={styles.fecha}>{formatearFecha(item.fecha)}</Text>
+                {tieneResultado && (
+                  <View style={styles.resultadoReal}>
+                    <Text style={styles.resultadoRealTxt}>
+                      {resultado.goles_local}-{resultado.goles_visita}
+                    </Text>
+                  </View>
+                )}
+                {color?.pts !== undefined && (
+                  <Text style={styles.ptsLabel}>+{color.pts} pts</Text>
+                )}
               </View>
               <View style={styles.cardMid}>
                 <View style={styles.equipoContainer}>
@@ -146,21 +177,23 @@ export default function QuinielaScreen() {
                 </View>
                 <View style={styles.inputsRow}>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, tieneResultado && styles.inputDisabled]}
                     keyboardType="numeric"
                     maxLength={2}
                     value={pred.local}
-                    onChangeText={v => setPred(item.id, 'local', v)}
+                    onChangeText={v => !tieneResultado && setPred(item.id, 'local', v)}
                     placeholder="0"
+                    editable={!tieneResultado}
                   />
                   <Text style={styles.guion}>-</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, tieneResultado && styles.inputDisabled]}
                     keyboardType="numeric"
                     maxLength={2}
                     value={pred.visita}
-                    onChangeText={v => setPred(item.id, 'visita', v)}
+                    onChangeText={v => !tieneResultado && setPred(item.id, 'visita', v)}
                     placeholder="0"
+                    editable={!tieneResultado}
                   />
                 </View>
                 <View style={[styles.equipoContainer, { flexDirection: 'row-reverse' }]}>
@@ -198,15 +231,22 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  cardExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
+  cardWinner: { backgroundColor: '#fffde7', borderLeftWidth: 4, borderLeftColor: '#f9a825' },
+  cardWrong: { backgroundColor: '#ffebee', borderLeftWidth: 4, borderLeftColor: '#c62828' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
   grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  fecha: { fontSize: 11, color: '#888' },
+  fecha: { fontSize: 11, color: '#888', flex: 1 },
+  resultadoReal: { backgroundColor: '#212529', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  resultadoRealTxt: { color: 'white', fontSize: 11, fontWeight: 'bold' },
+  ptsLabel: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
   cardMid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   equipoContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   equipo: { flex: 1, fontSize: 12, fontWeight: 'bold', color: '#333' },
   bandera: { width: 22, height: 15, borderRadius: 2 },
   inputsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8 },
   input: { width: 36, height: 36, borderWidth: 2, borderColor: '#ddd', borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 16, color: '#333' },
+  inputDisabled: { backgroundColor: '#f5f5f5', borderColor: '#eee', color: '#888' },
   guion: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#eee' },
   guardarBtn: { backgroundColor: '#2e7d32', borderRadius: 12, padding: 16, alignItems: 'center' },
