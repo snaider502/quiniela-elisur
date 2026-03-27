@@ -32,6 +32,9 @@ export default function AdminScreen() {
   const [tab, setTab] = useState('resultados');
   const [fechaLimite, setFechaLimite] = useState('');
   const [nuevaFechaLimite, setNuevaFechaLimite] = useState('');
+  const [equiposPendientes, setEquiposPendientes] = useState([]);
+  const [equipoEditar, setEquipoEditar] = useState('');
+  const [equipoNuevo, setEquipoNuevo] = useState('');
 
   useEffect(() => {
     verificarAdmin();
@@ -68,7 +71,7 @@ export default function AdminScreen() {
       setResultados(map);
     }
     if (u.data) setUsuarios(u.data);
-
+    await cargarEquiposPendientes();
     const { data: config } = await supabase
       .from('configuracion')
       .select('valor')
@@ -163,6 +166,36 @@ export default function AdminScreen() {
     }
   }
 
+async function cargarEquiposPendientes() {
+  const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
+  const pendientes = [];
+  for (const codigo of codigos) {
+    const { data } = await supabase
+      .from('partidos')
+      .select('id, titulo, equipo_local, equipo_visita')
+      .or(`equipo_local.eq.${codigo},equipo_visita.eq.${codigo}`)
+      .limit(1);
+    if (data && data.length > 0) pendientes.push(codigo);
+  }
+  setEquiposPendientes(pendientes);
+}
+
+async function actualizarEquipo() {
+  if (!equipoEditar || !equipoNuevo) {
+    Alert.alert('Error', 'Completa ambos campos');
+    return;
+  }
+  await supabase.rpc('actualizar_equipo', {
+    codigo_viejo: equipoEditar,
+    nombre_nuevo: equipoNuevo,
+  });
+  Alert.alert('✅ Listo', `${equipoEditar} actualizado a ${equipoNuevo}`);
+  setEquipoEditar('');
+  setEquipoNuevo('');
+  await cargarEquiposPendientes();
+  await cargarDatos();
+}
+
   function formatearFecha(fecha) {
     if (!fecha) return '';
     const d = new Date(fecha);
@@ -185,6 +218,11 @@ export default function AdminScreen() {
 
       <View style={styles.tabs}>
         <TouchableOpacity
+        style={[styles.tabBtn, tab === 'equipos' && styles.tabBtnActivo]}
+        onPress={() => setTab('equipos')}>
+        <Text style={[styles.tabTxt, tab === 'equipos' && styles.tabTxtActivo]}>🌍</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.tabBtn, tab === 'resultados' && styles.tabBtnActivo]}
           onPress={() => setTab('resultados')}>
           <Text style={[styles.tabTxt, tab === 'resultados' && styles.tabTxtActivo]}>⚽</Text>
@@ -200,7 +238,61 @@ export default function AdminScreen() {
           <Text style={[styles.tabTxt, tab === 'config' && styles.tabTxtActivo]}>🔧</Text>
         </TouchableOpacity>
       </View>
+{tab === 'equipos' && (
+  <ScrollView style={{ padding: 16 }}>
+    <View style={styles.configCard}>
+      <Text style={styles.configTitle}>🌍 Equipos Pendientes</Text>
+      <Text style={styles.configDesc}>
+        Actualiza los equipos que aún no estaban clasificados cuando se confirmen.
+      </Text>
 
+      {equiposPendientes.length === 0 && (
+        <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>
+          ✅ Todos los equipos están confirmados
+        </Text>
+      )}
+
+      {equiposPendientes.map(codigo => (
+        <View key={codigo} style={styles.equipoPendienteRow}>
+          <View style={styles.equipoCodigo}>
+            <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
+            <Text style={styles.equipoPendienteTxt}>Por confirmar</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.equipoEditarBtn}
+            onPress={() => setEquipoEditar(codigo)}>
+            <Text style={styles.guardarTxt}>Actualizar</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {equipoEditar !== '' && (
+        <View style={styles.equipoFormCard}>
+          <Text style={styles.configTitle}>Actualizar: {equipoEditar}</Text>
+          <TextInput
+            style={styles.configInput}
+            value={equipoNuevo}
+            onChangeText={setEquipoNuevo}
+            placeholder="Nombre del equipo clasificado"
+            autoCapitalize="words"
+          />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={[styles.configBtn, { flex: 1 }]}
+              onPress={actualizarEquipo}>
+              <Text style={styles.guardarTxt}>💾 Confirmar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.configBtn, { flex: 1, backgroundColor: '#888' }]}
+              onPress={() => { setEquipoEditar(''); setEquipoNuevo(''); }}>
+              <Text style={styles.guardarTxt}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  </ScrollView>
+)}
       {tab === 'resultados' && (
         <FlatList
           data={partidos}
@@ -363,4 +455,10 @@ const styles = StyleSheet.create({
   configInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 6, color: '#333' },
   configHint: { fontSize: 11, color: '#aaa', marginBottom: 12 },
   configBtn: { backgroundColor: '#1a237e', borderRadius: 8, padding: 12, alignItems: 'center' },
+  equipoPendienteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+equipoCodigo: { flex: 1 },
+equipoCodigoTxt: { fontSize: 15, fontWeight: 'bold', color: '#333' },
+equipoPendienteTxt: { fontSize: 11, color: '#f9a825' },
+equipoEditarBtn: { backgroundColor: '#1a237e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+equipoFormCard: { backgroundColor: '#f0f2f5', borderRadius: 10, padding: 14, marginTop: 14 },
 });
