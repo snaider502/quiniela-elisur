@@ -87,6 +87,7 @@ export default function AdminScreen() {
       Alert.alert('Error', error.message);
     } else {
       await calcularPuntosPartido(partido);
+      await guardarHistorialRanking();
       Alert.alert('✅ Listo', `Resultado guardado y puntos calculados`);
     }
     setGuardando(null);
@@ -122,6 +123,25 @@ export default function AdminScreen() {
       puntos: pts,
       tipo_acierto: tipo,
     }, { onConflict: 'usuario_id,partido_id' });
+    
+  }
+}
+
+
+
+async function guardarHistorialRanking() {
+  const { data: ranking } = await supabase
+    .from('ranking_view')
+    .select('*');
+  
+  if (!ranking) return;
+
+  for (let i = 0; i < ranking.length; i++) {
+    await supabase.from('ranking_historial').insert({
+      usuario_id: ranking[i].id,
+      posicion: i + 1,
+      puntos: ranking[i].puntos,
+    });
   }
 }
 
