@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "quiniela-2026",
-    "slug": "quiniela-2026",
+    "name": "Quiniela Mundial 2026",
+    "slug": "quiniela-mundial-2026",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,25 +9,26 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2e7d32"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snaider502.quiniela2026"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#2e7d32"
       },
-      "package": "com.anonymous.quiniela2026"
+      "package": "com.snaider502.quiniela2026"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-web-browser"
-    ]
+    "extra": {
+      "eas": {
+        "projectId": "19fd1cba-9c34-42ef-9eaf-1ee9793a626a"
+      }
+    }
   }
 }
