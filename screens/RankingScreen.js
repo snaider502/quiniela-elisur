@@ -10,16 +10,18 @@ export default function RankingScreen() {
     cargarRanking();
   }, []);
 
-  async function cargarRanking() {
-    try {
-      const { data, error } = await supabase.from('usuarios').select('id, nombre');
-      if (error) alert('Error: ' + error.message);
-      else setRanking(data.map(u => ({ ...u, puntos: 0 })));
-    } catch (e) {
-      alert('Excepcion: ' + e.message);
-    }
-    setLoading(false);
+ async function cargarRanking() {
+  try {
+    const { data, error } = await supabase
+      .from('ranking_view')
+      .select('*');
+    if (error) alert('Error: ' + error.message);
+    else setRanking(data);
+  } catch (e) {
+    alert('Error: ' + e.message);
   }
+  setLoading(false);
+}
 
   const medallas = ['🥇', '🥈', '🥉'];
 
