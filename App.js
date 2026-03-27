@@ -11,6 +11,7 @@ import ReglasScreen from './screens/ReglasScreen';
 import QuinielaScreen from './screens/QuinielaScreen';
 import PrediccionesScreen from './screens/PrediccionesScreen';
 import AdminScreen from './screens/AdminScreen';
+import BonosScreen from './screens/BonosScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -142,6 +143,7 @@ export default function App() {
         <Tab.Screen name="Simulador" component={SimuladorScreen} options={{ tabBarIcon: () => <Text>🧮</Text> }} />
         <Tab.Screen name="Reglas" component={ReglasScreen} options={{ tabBarIcon: () => <Text>📜</Text> }} />
         <Tab.Screen name="Admin" component={AdminScreen} options={{ tabBarIcon: () => <Text>⚙️</Text> }} />
+        <Tab.Screen name="Bonos" component={BonosScreen} options={{ tabBarIcon: () => <Text>⭐</Text> }} />
       </Tab.Navigator>
     </NavigationContainer>
   );
