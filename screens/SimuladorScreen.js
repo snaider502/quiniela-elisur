@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { calcularPuntos } from '../utils/calcularPuntos';
 
@@ -27,6 +27,7 @@ export default function SimuladorScreen() {
   const [partidos, setPartidos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [predicciones, setPredicciones] = useState([]);
+  const [resultados, setResultados] = useState({});
   const [marcadores, setMarcadores] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -35,21 +36,24 @@ export default function SimuladorScreen() {
   }, []);
 
   async function cargarDatos() {
-    const [p, u, pred] = await Promise.all([
+    const [p, u, pred, res] = await Promise.all([
       supabase.from('partidos').select('*').order('fecha', { ascending: true }),
-      supabase.from('usuarios').select('*'),
+      supabase.from('ranking_view').select('*'),
       supabase.from('predicciones').select('*'),
+      supabase.from('resultados').select('*'),
     ]);
     if (p.data) setPartidos(p.data.filter(x => x.tipo === 'partido'));
     if (u.data) setUsuarios(u.data);
     if (pred.data) setPredicciones(pred.data);
+    if (res.data) {
+      const map = {};
+      res.data.forEach(r => { map[r.partido_id] = r; });
+      setResultados(map);
+    }
     setLoading(false);
   }
 
-  const partidosPendientes = partidos.filter(p => {
-    const key = p.id.toString();
-    return !marcadores[key] || (marcadores[key].local === '' && marcadores[key].visita === '');
-  });
+  const partidosPendientes = partidos.filter(p => !resultados[p.id]);
 
   function setMarcador(partidoId, campo, valor) {
     setMarcadores(prev => ({
@@ -63,7 +67,7 @@ export default function SimuladorScreen() {
       let puntosExtra = 0;
       Object.keys(marcadores).forEach(partidoId => {
         const m = marcadores[partidoId];
-        if (m?.local === '' || m?.visita === '' || m?.local == null || m?.visita == null) return;
+        if (!m?.local || !m?.visita || m.local === '' || m.visita === '') return;
         const partido = partidos.find(p => p.id.toString() === partidoId);
         if (!partido) return;
         const pred = predicciones.find(p => p.usuario_id === u.id && p.partido_id === parseInt(partidoId));
@@ -73,7 +77,7 @@ export default function SimuladorScreen() {
         const resultado = calcularPuntos(realStr, predStr, partido.titulo);
         puntosExtra += resultado.pts;
       });
-      return { ...u, puntosExtra, total: (u.puntos_base || 0) + puntosExtra };
+      return { ...u, puntosExtra, total: (u.puntos || 0) + puntosExtra };
     }).sort((a, b) => b.total - a.total);
   }
 
@@ -96,8 +100,15 @@ export default function SimuladorScreen() {
         <Text style={styles.alertTxt}>Ingresa marcadores y mira cómo cambia la tabla en tiempo real</Text>
       </View>
 
-      <Text style={styles.seccionTitle}>Partidos Pendientes</Text>
-      {partidos.filter(p => true).slice(0, 10).map(partido => {
+      <Text style={styles.seccionTitle}>Partidos Pendientes ({partidosPendientes.length})</Text>
+
+      {partidosPendientes.length === 0 && (
+        <View style={styles.noPartidos}>
+          <Text style={styles.noPartidosTxt}>No hay partidos pendientes</Text>
+        </View>
+      )}
+
+      {partidosPendientes.map(partido => {
         const m = marcadores[partido.id] || { local: '', visita: '' };
         return (
           <View key={partido.id} style={styles.matchCard}>
@@ -139,19 +150,23 @@ export default function SimuladorScreen() {
         );
       })}
 
-      <TouchableOpacity style={styles.resetBtn} onPress={() => setMarcadores({})}>
-        <Text style={styles.resetTxt}>Borrar Todo</Text>
-      </TouchableOpacity>
+      {partidosPendientes.length > 0 && (
+        <TouchableOpacity style={styles.resetBtn} onPress={() => setMarcadores({})}>
+          <Text style={styles.resetTxt}>Borrar Todo</Text>
+        </TouchableOpacity>
+      )}
 
       <Text style={styles.seccionTitle}>Tabla Simulada</Text>
       {rankingSimulado.map((u, i) => (
         <View key={u.id} style={[styles.rankRow, i < 3 && styles.rankTop]}>
           <Text style={styles.rankPos}>{medallas[i] || i + 1}</Text>
           <Text style={styles.rankNombre}>{u.nombre}</Text>
-          <Text style={styles.rankTotal}>{u.total}</Text>
-          {u.puntosExtra > 0 && (
-            <Text style={styles.rankExtra}>+{u.puntosExtra}</Text>
-          )}
+          <View style={styles.rankPuntos}>
+            <Text style={styles.rankTotal}>{u.total}</Text>
+            {u.puntosExtra > 0 && (
+              <Text style={styles.rankExtra}>+{u.puntosExtra}</Text>
+            )}
+          </View>
         </View>
       ))}
 
@@ -168,6 +183,8 @@ const styles = StyleSheet.create({
   alert: { backgroundColor: '#e3f2fd', margin: 12, borderRadius: 10, padding: 12 },
   alertTxt: { color: '#0d47a1', fontSize: 12, textAlign: 'center' },
   seccionTitle: { fontSize: 12, fontWeight: 'bold', color: '#888', textTransform: 'uppercase', marginHorizontal: 12, marginTop: 12, marginBottom: 8, letterSpacing: 0.5 },
+  noPartidos: { backgroundColor: 'white', borderRadius: 10, padding: 20, marginHorizontal: 12, alignItems: 'center' },
+  noPartidosTxt: { color: '#888', fontSize: 13 },
   matchCard: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginHorizontal: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 1 },
   matchTeams: { flex: 1, gap: 4 },
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -177,12 +194,13 @@ const styles = StyleSheet.create({
   inputs: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   input: { width: 36, height: 36, borderWidth: 2, borderColor: '#ddd', borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
   guion: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  resetBtn: { backgroundColor: '#757575', borderRadius: 10, padding: 12, marginHorizontal: 12, marginTop: 8, alignItems: 'center' },
+  resetBtn: { backgroundColor: '#757575', borderRadius: 10, padding: 12, marginHorizontal: 12, marginTop: 4, marginBottom: 8, alignItems: 'center' },
   resetTxt: { color: 'white', fontWeight: 'bold', fontSize: 13 },
   rankRow: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginHorizontal: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', elevation: 1 },
   rankTop: { backgroundColor: '#f9f9f9' },
   rankPos: { fontSize: 18, width: 36 },
   rankNombre: { flex: 1, fontSize: 14, fontWeight: 'bold', color: '#333' },
+  rankPuntos: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   rankTotal: { fontSize: 16, fontWeight: 'bold', color: '#2e7d32' },
-  rankExtra: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32', marginLeft: 4 },
+  rankExtra: { fontSize: 11, fontWeight: 'bold', color: '#f9a825', backgroundColor: '#fffde7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
 });
