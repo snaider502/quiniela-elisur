@@ -15,6 +15,7 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
 };
 
 function getBandera(pais) {
@@ -27,32 +28,27 @@ export default function AdminScreen() {
   const [partidos, setPartidos] = useState([]);
   const [resultados, setResultados] = useState({});
   const [usuarios, setUsuarios] = useState([]);
+  const [equipos, setEquipos] = useState([]);
+  const [resultadosBonos, setResultadosBonos] = useState({});
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(null);
   const [esAdmin, setEsAdmin] = useState(false);
   const [tab, setTab] = useState('resultados');
   const [fechaLimite, setFechaLimite] = useState('');
   const [nuevaFechaLimite, setNuevaFechaLimite] = useState('');
+  const [configMap, setConfigMap] = useState({});
+  const [nuevoConfigMap, setNuevoConfigMap] = useState({});
   const [equiposPendientes, setEquiposPendientes] = useState([]);
   const [equipoEditar, setEquipoEditar] = useState('');
   const [equipoNuevo, setEquipoNuevo] = useState('');
-  const [configMap, setConfigMap] = useState({});
-  const [nuevoConfigMap, setNuevoConfigMap] = useState({});
-  const [equipos, setEquipos] = useState([]);
-const [resultadosBonos, setResultadosBonos] = useState({});
 
-  useEffect(() => {
-    verificarAdmin();
-  }, []);
+  useEffect(() => { verificarAdmin(); }, []);
 
   async function verificarAdmin() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data } = await supabase.from('usuarios').select('es_admin').eq('id', user.id).single();
-    if (data?.es_admin) {
-      setEsAdmin(true);
-      await cargarDatos();
-    }
+    if (data?.es_admin) { setEsAdmin(true); await cargarDatos(); }
     setLoading(false);
   }
 
@@ -62,116 +58,122 @@ const [resultadosBonos, setResultadosBonos] = useState({});
       supabase.from('resultados').select('*'),
       supabase.from('usuarios').select('*').order('nombre'),
     ]);
-
     if (p.data) setPartidos(p.data);
     if (r.data) {
       const map = {};
-      r.data.forEach(res => {
-        map[res.partido_id] = {
-          local: res.goles_local?.toString() || '',
-          visita: res.goles_visita?.toString() || '',
-          id: res.id
-        };
-      });
+      r.data.forEach(res => { map[res.partido_id] = { local: res.goles_local?.toString() || '', visita: res.goles_visita?.toString() || '', id: res.id }; });
       setResultados(map);
     }
+    if (u.data) setUsuarios(u.data);
     await cargarConfigFases();
     await cargarEquipos();
-await cargarResultadosBonos();
-    if (u.data) setUsuarios(u.data);
-    await cargarEquiposPendientes();
-    const { data: config } = await supabase
-      .from('configuracion')
-      .select('valor')
-      .eq('clave', 'fecha_limite')
-      .single();
-    if (config) {
-      setFechaLimite(config.valor);
-      setNuevaFechaLimite(config.valor);
+    await cargarResultadosBonos();
+  }
+
+  async function cargarConfigFases() {
+    const { data } = await supabase.from('configuracion').select('*');
+    if (data) {
+      const map = {};
+      data.forEach(c => { map[c.clave] = c.valor; });
+      setConfigMap(map);
+      setNuevoConfigMap(map);
+      setFechaLimite(map['fecha_limite'] || '');
+      setNuevaFechaLimite(map['fecha_limite'] || '');
+    }
+  }
+
+  async function cargarEquipos() {
+    const { data } = await supabase.from('partidos').select('equipo_local, equipo_visita').in('grupo', ['A','B','C','D','E','F','G','H','I','J','K','L']);
+    if (data) {
+      const set = new Set();
+      data.forEach(p => { set.add(p.equipo_local); set.add(p.equipo_visita); });
+      setEquipos([...set].sort());
+    }
+    const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
+    const pendientes = [];
+    for (const codigo of codigos) {
+      const { data: d } = await supabase.from('partidos').select('id').or(`equipo_local.eq.${codigo},equipo_visita.eq.${codigo}`).limit(1);
+      if (d && d.length > 0) pendientes.push(codigo);
+    }
+    setEquiposPendientes(pendientes);
+  }
+
+  async function cargarResultadosBonos() {
+    const { data } = await supabase.from('configuracion').select('*');
+    if (data) {
+      const map = {};
+      data.forEach(c => { if (c.clave.startsWith('resultado_bono_')) map[c.clave] = c.valor; });
+      setResultadosBonos(map);
     }
   }
 
   function setResultado(partidoId, campo, valor) {
-    setResultados(prev => ({
-      ...prev,
-      [partidoId]: { ...prev[partidoId], [campo]: valor }
-    }));
+    setResultados(prev => ({ ...prev, [partidoId]: { ...prev[partidoId], [campo]: valor } }));
   }
 
   async function guardarResultado(partido) {
     const res = resultados[partido.id];
-    if (!res || res.local === '' || res.visita === '') {
-      Alert.alert('Error', 'Ingresa ambos marcadores');
-      return;
-    }
+    if (!res || res.local === '' || res.visita === '') { Alert.alert('Error', 'Ingresa ambos marcadores'); return; }
     setGuardando(partido.id);
     const { error } = await supabase.from('resultados').upsert({
       partido_id: partido.id,
       goles_local: parseInt(res.local),
       goles_visita: parseInt(res.visita),
     }, { onConflict: 'partido_id' });
-await enviarMensajeWhatsApp(
-  `⚽ QUINIELA MUNDIAL 2026\n\nNuevo resultado registrado:\n🏟️ ${partido.titulo}\n📊 Marcador: ${res.local} - ${res.visita}\n\n¡Revisa tu posición en la app! 🏆`
-);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
       await calcularPuntosPartido(partido);
       await guardarHistorialRanking();
-      
+      await enviarMensajeWhatsApp(`⚽ QUINIELA MUNDIAL 2026\n\nNuevo resultado:\n🏟️ ${partido.titulo}\n📊 ${res.local} - ${res.visita}\n\n¡Revisa tu posición en la app! 🏆`);
       Alert.alert('✅ Listo', 'Resultado guardado y puntos calculados');
     }
     setGuardando(null);
   }
 
- async function calcularPuntosPartido(partido) {
-  const res = resultados[partido.id];
-  if (!res) return;
-
-  const { data: preds } = await supabase
-    .from('predicciones')
-    .select('*')
-    .eq('partido_id', partido.id);
-
-  if (!preds || preds.length === 0) return;
-
-  for (const pred of preds) {
-    const { pts, tipo } = calcularPuntosPartidoUtil(
-      parseInt(res.local),
-      parseInt(res.visita),
-      pred.goles_local,
-      pred.goles_visita
-    );
-
-    await supabase.from('puntos').upsert({
-      usuario_id: pred.usuario_id,
-      partido_id: partido.id,
-      puntos: pts,
-      tipo_acierto: tipo,
-    }, { onConflict: 'usuario_id,partido_id,tipo_acierto' });
+ async function borrarResultado(partido) {
+  try {
+    await supabase.from('puntos').delete().eq('partido_id', partido.id);
+    await supabase.from('resultados').delete().eq('partido_id', partido.id);
+    setResultados(prev => {
+      const nuevo = { ...prev };
+      delete nuevo[partido.id];
+      return nuevo;
+    });
+    alert('✅ Resultado y puntos borrados correctamente');
+  } catch (e) {
+    alert('Error: ' + e.message);
   }
 }
+
+  async function calcularPuntosPartido(partido) {
+    const res = resultados[partido.id];
+    if (!res) return;
+    const { data: preds } = await supabase.from('predicciones').select('*').eq('partido_id', partido.id);
+    if (!preds || preds.length === 0) return;
+    for (const pred of preds) {
+      const { pts, tipo } = calcularPuntosPartidoUtil(parseInt(res.local), parseInt(res.visita), pred.goles_local, pred.goles_visita);
+      await supabase.from('puntos').upsert({
+        usuario_id: pred.usuario_id, partido_id: partido.id, puntos: pts, tipo_acierto: tipo,
+      }, { onConflict: 'usuario_id,partido_id' });
+    }
+  }
 
   async function guardarHistorialRanking() {
     const { data: ranking } = await supabase.from('ranking_view').select('*');
     if (!ranking) return;
     for (let i = 0; i < ranking.length; i++) {
-      await supabase.from('ranking_historial').insert({
-        usuario_id: ranking[i].id, posicion: i + 1, puntos: ranking[i].puntos,
-      });
+      await supabase.from('ranking_historial').insert({ usuario_id: ranking[i].id, posicion: i + 1, puntos: ranking[i].puntos });
     }
   }
 
-async function enviarMensajeWhatsApp(mensaje) {
-  try {
-    const phone = '50242451548';
-    const apikey = '6717176';
-    const texto = encodeURIComponent(mensaje);
-    await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${texto}&apikey=${apikey}`);
-  } catch (e) {
-    console.log('Error WhatsApp:', e);
+  async function enviarMensajeWhatsApp(mensaje) {
+    try {
+      const phone = '50242451548';
+      const apikey = '6717176';
+      await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(mensaje)}&apikey=${apikey}`);
+    } catch (e) { console.log('Error WhatsApp:', e); }
   }
-}
 
   async function activarUsuario(userId) {
     const { error } = await supabase.from('usuarios').update({ activo: true }).eq('id', userId);
@@ -186,331 +188,82 @@ async function enviarMensajeWhatsApp(mensaje) {
   }
 
   async function guardarFechaLimite() {
-    const { error } = await supabase
-      .from('configuracion')
-      .update({ valor: nuevaFechaLimite })
-      .eq('clave', 'fecha_limite');
+    const { error } = await supabase.from('configuracion').update({ valor: nuevaFechaLimite }).eq('clave', 'fecha_limite');
+    if (error) Alert.alert('Error', error.message);
+    else { setFechaLimite(nuevaFechaLimite); Alert.alert('✅ Listo', 'Fecha límite actualizada'); }
+  }
+
+  async function toggleFase(clave, fechaClave, nuevoValor) {
+    const fechaLimiteFase = nuevoConfigMap[fechaClave];
+    await supabase.from('configuracion').update({ valor: nuevoValor.toString() }).eq('clave', clave);
+    if (fechaLimiteFase) await supabase.from('configuracion').update({ valor: fechaLimiteFase }).eq('clave', fechaClave);
+    await cargarConfigFases();
+    Alert.alert('✅ Listo', `Fase ${nuevoValor ? 'habilitada' : 'deshabilitada'}`);
+  }
+
+  async function actualizarEquipo() {
+    if (!equipoEditar || !equipoNuevo) { Alert.alert('Error', 'Completa ambos campos'); return; }
+    await supabase.rpc('actualizar_equipo', { codigo_viejo: equipoEditar, nombre_nuevo: equipoNuevo });
+    Alert.alert('✅ Listo', `${equipoEditar} actualizado a ${equipoNuevo}`);
+    setEquipoEditar(''); setEquipoNuevo('');
+    await cargarEquipos();
+    await cargarDatos();
+  }
+
+  async function guardarResultadoBono(clave, valor) {
+    const claveCompleta = `resultado_bono_${clave}`;
+    const { error } = await supabase.from('configuracion').upsert({ clave: claveCompleta, valor }, { onConflict: 'clave' });
     if (error) Alert.alert('Error', error.message);
     else {
-      setFechaLimite(nuevaFechaLimite);
-      Alert.alert('✅ Listo', 'Fecha límite actualizada');
+      setResultadosBonos(prev => ({ ...prev, [claveCompleta]: valor }));
+      await calcularPuntosBonos(clave, valor);
+      Alert.alert('✅ Listo', 'Resultado de bono guardado');
     }
   }
 
-async function cargarConfigFases() {
-  const { data } = await supabase.from('configuracion').select('*');
-  if (data) {
-    const map = {};
-    data.forEach(c => { map[c.clave] = c.valor; });
-    setConfigMap(map);
-    setNuevoConfigMap(map);
+  async function calcularPuntosBonos(clave, valorReal) {
+    const { data: preds } = await supabase.from('predicciones_bonos').select('*').eq('clave', clave);
+    if (!preds || preds.length === 0) return;
+    const puntosMap = { 'campeon': 30, 'subcampeon': 20, 'tercer_lugar': 10, 'cuarto_lugar': 5, 'goleador': 15, 'portero': 15 };
+    const pts = clave.startsWith('lider_') ? 10 : (clave.startsWith('mejor_tercero') ? 5 : puntosMap[clave] || 0);
+    for (const pred of preds) {
+      if (pred.valor?.toLowerCase() !== valorReal?.toLowerCase()) continue;
+      await supabase.from('puntos').upsert({
+        usuario_id: pred.usuario_id, partido_id: null, puntos: pts, tipo_acierto: `bono_${clave}`,
+      }, { onConflict: 'usuario_id,tipo_acierto' });
+    }
   }
-}
-
-async function toggleFase(clave, fechaClave, nuevoValor) {
-  const fechaLimiteFase = nuevoConfigMap[fechaClave];
-  await supabase.from('configuracion').update({ valor: nuevoValor.toString() }).eq('clave', clave);
-  if (fechaLimiteFase) {
-    await supabase.from('configuracion').update({ valor: fechaLimiteFase }).eq('clave', fechaClave);
-  }
-  await cargarConfigFases();
-  Alert.alert('✅ Listo', `Fase ${nuevoValor ? 'habilitada' : 'deshabilitada'}`);
-}
-
-async function cargarEquipos() {
-  const { data } = await supabase
-    .from('partidos')
-    .select('equipo_local, equipo_visita')
-    .in('grupo', ['A','B','C','D','E','F','G','H','I','J','K','L']);
-  if (data) {
-    const set = new Set();
-    data.forEach(p => { set.add(p.equipo_local); set.add(p.equipo_visita); });
-    setEquipos([...set].sort());
-  }
-}
-
-async function cargarResultadosBonos() {
-  const { data } = await supabase.from('configuracion').select('*');
-  if (data) {
-    const map = {};
-    data.forEach(c => { if (c.clave.startsWith('resultado_bono_')) map[c.clave] = c.valor; });
-    setResultadosBonos(map);
-  }
-}
-
-async function guardarResultadoBono(clave, valor) {
-  const claveCompleta = `resultado_bono_${clave}`;
-  const { error } = await supabase
-    .from('configuracion')
-    .upsert({ clave: claveCompleta, valor }, { onConflict: 'clave' });
-  if (error) Alert.alert('Error', error.message);
-  else {
-    setResultadosBonos(prev => ({ ...prev, [claveCompleta]: valor }));
-    await calcularPuntosBonos(clave, valor);
-    Alert.alert('✅ Listo', 'Resultado de bono guardado y puntos calculados');
-  }
-}
-
-async function calcularPuntosBonos(clave, valorReal) {
-  const { data: preds } = await supabase
-    .from('predicciones_bonos')
-    .select('*')
-    .eq('clave', clave);
-
-  if (!preds || preds.length === 0) return;
-
-  const puntosMap = {
-    'campeon': 30, 'subcampeon': 20, 'tercer_lugar': 10, 'cuarto_lugar': 5,
-    'goleador': 15, 'portero': 15,
-  };
-  const pts = clave.startsWith('lider_') ? 10 : (clave.startsWith('mejor_tercero') ? 5 : puntosMap[clave] || 0);
-
-  for (const pred of preds) {
-    if (pred.valor?.toLowerCase() !== valorReal?.toLowerCase()) continue;
-    await supabase.from('puntos').upsert({
-      usuario_id: pred.usuario_id,
-      partido_id: null,
-      puntos: pts,
-      tipo_acierto: `bono_${clave}`,
-    }, { onConflict: 'usuario_id,tipo_acierto' });
-  }
-}
-
-async function cargarEquiposPendientes() {
-  const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
-  const pendientes = [];
-  for (const codigo of codigos) {
-    const { data } = await supabase
-      .from('partidos')
-      .select('id, titulo, equipo_local, equipo_visita')
-      .or(`equipo_local.eq.${codigo},equipo_visita.eq.${codigo}`)
-      .limit(1);
-    if (data && data.length > 0) pendientes.push(codigo);
-  }
-  setEquiposPendientes(pendientes);
-}
-
-async function actualizarEquipo() {
-  if (!equipoEditar || !equipoNuevo) {
-    Alert.alert('Error', 'Completa ambos campos');
-    return;
-  }
-  await supabase.rpc('actualizar_equipo', {
-    codigo_viejo: equipoEditar,
-    nombre_nuevo: equipoNuevo,
-  });
-  Alert.alert('✅ Listo', `${equipoEditar} actualizado a ${equipoNuevo}`);
-  setEquipoEditar('');
-  setEquipoNuevo('');
-  await cargarEquiposPendientes();
-  await cargarDatos();
-}
 
   function formatearFecha(fecha) {
-  if (!fecha) return '';
-  const partes = fecha.split('T')[0].split('-');
-  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
-}
+    if (!fecha) return '';
+    const partes = fecha.split('T')[0].split('-');
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
+  }
 
-  if (loading) return (
-    <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>
-  );
-
-  if (!esAdmin) return (
-    <View style={styles.center}><Text style={styles.noAdmin}>🔒 Acceso solo para administrador</Text></View>
-  );
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
+  if (!esAdmin) return <View style={styles.center}><Text style={styles.noAdmin}>🔒 Acceso solo para administrador</Text></View>;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>⚙️ Panel Admin</Text>
-      </View>
-
       <View style={styles.tabs}>
-        <TouchableOpacity
-  style={[styles.tabBtn, tab === 'bonos' && styles.tabBtnActivo]}
-  onPress={() => setTab('bonos')}>
-  <Text style={[styles.tabTxt, tab === 'bonos' && styles.tabTxtActivo]}>⭐</Text>
-</TouchableOpacity>
-        <TouchableOpacity
-        style={[styles.tabBtn, tab === 'equipos' && styles.tabBtnActivo]}
-        onPress={() => setTab('equipos')}>
-        <Text style={[styles.tabTxt, tab === 'equipos' && styles.tabTxtActivo]}>🌍</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'resultados' && styles.tabBtnActivo]}
-          onPress={() => setTab('resultados')}>
+        <TouchableOpacity style={[styles.tabBtn, tab === 'resultados' && styles.tabBtnActivo]} onPress={() => setTab('resultados')}>
           <Text style={[styles.tabTxt, tab === 'resultados' && styles.tabTxtActivo]}>⚽</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'usuarios' && styles.tabBtnActivo]}
-          onPress={() => setTab('usuarios')}>
+        <TouchableOpacity style={[styles.tabBtn, tab === 'usuarios' && styles.tabBtnActivo]} onPress={() => setTab('usuarios')}>
           <Text style={[styles.tabTxt, tab === 'usuarios' && styles.tabTxtActivo]}>👥</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'config' && styles.tabBtnActivo]}
-          onPress={() => setTab('config')}>
+        <TouchableOpacity style={[styles.tabBtn, tab === 'config' && styles.tabBtnActivo]} onPress={() => setTab('config')}>
           <Text style={[styles.tabTxt, tab === 'config' && styles.tabTxtActivo]}>🔧</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={[styles.tabBtn, tab === 'equipos' && styles.tabBtnActivo]} onPress={() => setTab('equipos')}>
+          <Text style={[styles.tabTxt, tab === 'equipos' && styles.tabTxtActivo]}>🌍</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tabBtn, tab === 'bonos' && styles.tabBtnActivo]} onPress={() => setTab('bonos')}>
+          <Text style={[styles.tabTxt, tab === 'bonos' && styles.tabTxtActivo]}>⭐</Text>
+        </TouchableOpacity>
       </View>
-{tab === 'equipos' && (
-  <ScrollView style={{ padding: 16 }}>
-    <View style={styles.configCard}>
-      <Text style={styles.configTitle}>🌍 Equipos Pendientes</Text>
-      <Text style={styles.configDesc}>
-        Actualiza los equipos que aún no estaban clasificados cuando se confirmen.
-      </Text>
 
-      {equiposPendientes.length === 0 && (
-        <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>
-          ✅ Todos los equipos están confirmados
-        </Text>
-      )}
-
-      {equiposPendientes.map(codigo => (
-        <View key={codigo} style={styles.equipoPendienteRow}>
-          <View style={styles.equipoCodigo}>
-            <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
-            <Text style={styles.equipoPendienteTxt}>Por confirmar</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.equipoEditarBtn}
-            onPress={() => setEquipoEditar(codigo)}>
-            <Text style={styles.guardarTxt}>Actualizar</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-
-      {equipoEditar !== '' && (
-        <View style={styles.equipoFormCard}>
-          <Text style={styles.configTitle}>Actualizar: {equipoEditar}</Text>
-          <TextInput
-            style={styles.configInput}
-            value={equipoNuevo}
-            onChangeText={setEquipoNuevo}
-            placeholder="Nombre del equipo clasificado"
-            autoCapitalize="words"
-          />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
-              style={[styles.configBtn, { flex: 1 }]}
-              onPress={actualizarEquipo}>
-              <Text style={styles.guardarTxt}>💾 Confirmar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.configBtn, { flex: 1, backgroundColor: '#888' }]}
-              onPress={() => { setEquipoEditar(''); setEquipoNuevo(''); }}>
-              <Text style={styles.guardarTxt}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-    </View>
-  </ScrollView>
-)}
-{tab === 'bonos' && (
-  <ScrollView style={{ padding: 16 }}>
-    {[
-      { clave: 'campeon', label: 'Campeón del Mundo', icon: '🏆' },
-      { clave: 'subcampeon', label: 'Subcampeón', icon: '🥈' },
-      { clave: 'tercer_lugar', label: '3er Lugar', icon: '🥉' },
-      { clave: 'cuarto_lugar', label: '4to Lugar', icon: '4️⃣' },
-      { clave: 'goleador', label: 'Selección Goleadora', icon: '⚽' },
-      { clave: 'portero', label: 'Portero Menos Vencido', icon: '🧤' },
-    ].map(bono => (
-      <View key={bono.clave} style={styles.bonoCard}>
-        <Text style={styles.bonoTitulo}>{bono.icon} {bono.label}</Text>
-        {resultadosBonos[`resultado_bono_${bono.clave}`] && (
-          <Text style={styles.bonoActual}>Actual: {resultadosBonos[`resultado_bono_${bono.clave}`]}</Text>
-        )}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-          {equipos.map(equipo => (
-            <TouchableOpacity
-              key={equipo}
-              style={[
-                styles.bonoEquipoBtn,
-                resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnActivo,
-              ]}
-              onPress={() => guardarResultadoBono(bono.clave, equipo)}>
-              {BANDERAS[equipo.toLowerCase()] && (
-                <Image
-                  source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }}
-                  style={styles.bandera} />
-              )}
-              <Text style={[
-                styles.bonoEquipoBtnTxt,
-                resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnTxtActivo,
-              ]} numberOfLines={1}>{equipo}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    ))}
-
-    <View style={[styles.bonoCard, { marginTop: 8 }]}>
-      <Text style={styles.bonoTitulo}>🥇 Líderes de Grupo</Text>
-      {['A','B','C','D','E','F','G','H','I','J','K','L'].map(grupo => (
-        <View key={grupo} style={styles.grupoBonoRow}>
-          <Text style={styles.grupoBonoLabel}>Grupo {grupo}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-            {equipos.map(equipo => (
-              <TouchableOpacity
-                key={equipo}
-                style={[
-                  styles.bonoEquipoBtnSmall,
-                  resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnActivo,
-                ]}
-                onPress={() => guardarResultadoBono(`lider_${grupo}`, equipo)}>
-                {BANDERAS[equipo.toLowerCase()] && (
-                  <Image
-                    source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }}
-                    style={{ width: 14, height: 10, borderRadius: 2 }} />
-                )}
-                <Text style={[
-                  styles.bonoEquipoBtnSmallTxt,
-                  resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnTxtActivo,
-                ]} numberOfLines={1}>{equipo}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      ))}
-    </View>
-
-    <View style={[styles.bonoCard, { marginTop: 8, marginBottom: 30 }]}>
-      <Text style={styles.bonoTitulo}>3️⃣ Mejores Terceros (selecciona 8)</Text>
-      <Text style={styles.bonoActual}>
-        Seleccionados: {Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length}/8
-      </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-        {equipos.map(equipo => {
-          const yaSeleccionado = Object.values(resultadosBonos).includes(equipo) &&
-            Object.keys(resultadosBonos).some(k => k.startsWith('resultado_bono_mejor_tercero') && resultadosBonos[k] === equipo);
-          return (
-            <TouchableOpacity
-              key={equipo}
-              style={[styles.bonoEquipoBtnGrid, yaSeleccionado && styles.bonoEquipoBtnActivo]}
-              onPress={() => {
-                if (yaSeleccionado) return;
-                const count = Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length;
-                if (count >= 8) { Alert.alert('Máximo 8', 'Ya seleccionaste los 8 mejores terceros'); return; }
-                guardarResultadoBono(`mejor_tercero_${count + 1}`, equipo);
-              }}>
-              {BANDERAS[equipo.toLowerCase()] && (
-                <Image
-                  source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }}
-                  style={styles.bandera} />
-              )}
-              <Text style={[styles.bonoEquipoBtnTxt, yaSeleccionado && styles.bonoEquipoBtnTxtActivo]}
-                numberOfLines={1}>{equipo}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  </ScrollView>
-)}
       {tab === 'resultados' && (
         <FlatList
           data={partidos}
@@ -522,54 +275,40 @@ async function actualizarEquipo() {
             return (
               <View style={[styles.card, tieneResultado && styles.cardCompleto]}>
                 <View style={styles.cardTop}>
-                  <Text style={styles.grupoBadge}>Grupo {item.grupo}</Text>
+                  <Text style={styles.grupoBadge}>{item.grupo}</Text>
                   <Text style={styles.fecha}>{formatearFecha(item.fecha)}</Text>
                   {tieneResultado && <Text style={styles.checkmark}>✅</Text>}
                 </View>
                 <View style={styles.cardMid}>
                   <View style={styles.equipoContainer}>
-                    {getBandera(item.equipo_local) && (
-                      <Image source={{ uri: getBandera(item.equipo_local) }} style={styles.bandera} />
-                    )}
+                    {getBandera(item.equipo_local) && <Image source={{ uri: getBandera(item.equipo_local) }} style={styles.bandera} />}
                     <Text style={styles.equipo} numberOfLines={1}>{item.equipo_local}</Text>
                   </View>
                   <View style={styles.inputsRow}>
-                    <TextInput
-                      style={styles.input}
-                      keyboardType="numeric"
-                      maxLength={2}
-                      value={res.local}
-                      onChangeText={v => setResultado(item.id, 'local', v)}
-                      placeholder="0"
-                    />
+                    <TextInput style={styles.input} keyboardType="numeric" maxLength={2} value={res.local} onChangeText={v => setResultado(item.id, 'local', v)} placeholder="0" />
                     <Text style={styles.guion}>-</Text>
-                    <TextInput
-                      style={styles.input}
-                      keyboardType="numeric"
-                      maxLength={2}
-                      value={res.visita}
-                      onChangeText={v => setResultado(item.id, 'visita', v)}
-                      placeholder="0"
-                    />
+                    <TextInput style={styles.input} keyboardType="numeric" maxLength={2} value={res.visita} onChangeText={v => setResultado(item.id, 'visita', v)} placeholder="0" />
                   </View>
                   <View style={[styles.equipoContainer, { flexDirection: 'row-reverse' }]}>
-                    {getBandera(item.equipo_visita) && (
-                      <Image source={{ uri: getBandera(item.equipo_visita) }} style={styles.bandera} />
-                    )}
-                    <Text style={[styles.equipo, { textAlign: 'right' }]} numberOfLines={1}>
-                      {item.equipo_visita}
-                    </Text>
+                    {getBandera(item.equipo_visita) && <Image source={{ uri: getBandera(item.equipo_visita) }} style={styles.bandera} />}
+                    <Text style={[styles.equipo, { textAlign: 'right' }]} numberOfLines={1}>{item.equipo_visita}</Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.guardarBtn}
-                  onPress={() => guardarResultado(item)}
-                  disabled={guardando === item.id}>
-                  {guardando === item.id
-                    ? <ActivityIndicator color="white" size="small" />
-                    : <Text style={styles.guardarTxt}>Guardar resultado</Text>
-                  }
+                <TouchableOpacity style={styles.guardarBtn} onPress={() => guardarResultado(item)} disabled={guardando === item.id}>
+                  {guardando === item.id ? <ActivityIndicator color="white" size="small" /> : <Text style={styles.guardarTxt}>Guardar resultado</Text>}
                 </TouchableOpacity>
+                {tieneResultado && (
+                  <TouchableOpacity
+  style={styles.borrarBtn}
+  activeOpacity={0.7}
+  onPress={() => {
+    if (window.confirm(`¿Seguro que quieres borrar el resultado de ${item.equipo_local} vs ${item.equipo_visita}?`)) {
+      borrarResultado(item);
+    }
+  }}>
+  <Text style={styles.borrarTxt}>🗑️ Borrar resultado</Text>
+</TouchableOpacity>
+                )}
               </View>
             );
           }}
@@ -591,12 +330,8 @@ async function actualizarEquipo() {
                 <Text style={styles.estadoTxt}>{item.activo ? 'Activo' : 'Inactivo'}</Text>
               </View>
               {item.activo
-                ? <TouchableOpacity style={styles.btnDesactivar} onPress={() => desactivarUsuario(item.id)}>
-                    <Text style={styles.btnTxt}>Desactivar</Text>
-                  </TouchableOpacity>
-                : <TouchableOpacity style={styles.btnActivar} onPress={() => activarUsuario(item.id)}>
-                    <Text style={styles.btnTxt}>Activar</Text>
-                  </TouchableOpacity>
+                ? <TouchableOpacity style={styles.btnDesactivar} onPress={() => desactivarUsuario(item.id)}><Text style={styles.btnTxt}>Desactivar</Text></TouchableOpacity>
+                : <TouchableOpacity style={styles.btnActivar} onPress={() => activarUsuario(item.id)}><Text style={styles.btnTxt}>Activar</Text></TouchableOpacity>
               }
             </View>
           )}
@@ -604,65 +339,170 @@ async function actualizarEquipo() {
       )}
 
       {tab === 'config' && (
-  <ScrollView style={{ padding: 16 }}>
-    <View style={styles.configCard}>
-      <Text style={styles.configTitle}>📅 Fecha límite fase de grupos</Text>
-      <Text style={styles.configDesc}>
-        Los participantes no podrán modificar predicciones de grupos después de esta fecha.
-      </Text>
-      <Text style={styles.configActual}>Actual: {fechaLimite}</Text>
-      <TextInput
-        style={styles.configInput}
-        value={nuevaFechaLimite}
-        onChangeText={setNuevaFechaLimite}
-        placeholder="YYYY-MM-DD HH:MM:SS"
-        autoCapitalize="none"
-      />
-      <Text style={styles.configHint}>Ejemplo: 2026-06-11 12:00:00</Text>
-      <TouchableOpacity style={styles.configBtn} onPress={guardarFechaLimite}>
-        <Text style={styles.guardarTxt}>💾 Guardar fecha límite grupos</Text>
-      </TouchableOpacity>
-    </View>
-
-    <View style={[styles.configCard, { marginTop: 12 }]}>
-      <Text style={styles.configTitle}>🏆 Habilitar Fases Eliminatorias</Text>
-      <Text style={styles.configDesc}>
-        Activa cada fase cuando llegue el momento. Al activar, los participantes podrán llenar sus predicciones.
-      </Text>
-      {[
-        { clave: 'fase_r16_habilitada', fechaClave: 'fecha_limite_r16', label: 'Fase de 32 (R16)' },
-        { clave: 'fase_r8_habilitada', fechaClave: 'fecha_limite_r8', label: 'Fase de 16 (R8)' },
-        { clave: 'fase_r4_habilitada', fechaClave: 'fecha_limite_r4', label: 'Cuartos de Final (R4)' },
-        { clave: 'fase_semi_habilitada', fechaClave: 'fecha_limite_semi', label: 'Semifinales' },
-        { clave: 'fase_final_habilitada', fechaClave: 'fecha_limite_final', label: 'Final' },
-{ clave: 'fase_tercer_habilitada', fechaClave: 'fecha_limite_tercer', label: '3er y 4to Lugar' },
-
-      ].map(fase => {
-        const habilitada = configMap[fase.clave] === 'true';
-        const fechaFase = configMap[fase.fechaClave] || '';
-        return (
-          <View key={fase.clave} style={styles.faseRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.faseLabel}>{fase.label}</Text>
-              <TextInput
-                style={styles.faseFechaInput}
-                value={nuevoConfigMap[fase.fechaClave] || fechaFase}
-                onChangeText={v => setNuevoConfigMap(prev => ({ ...prev, [fase.fechaClave]: v }))}
-                placeholder="Fecha límite YYYY-MM-DD HH:MM:SS"
-                autoCapitalize="none"
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.faseBtn, habilitada ? styles.faseBtnActivo : styles.faseBtnInactivo]}
-              onPress={() => toggleFase(fase.clave, fase.fechaClave, !habilitada)}>
-              <Text style={styles.faseBtnTxt}>{habilitada ? '✅ ON' : '⛔ OFF'}</Text>
+        <ScrollView style={{ padding: 16 }}>
+          <View style={styles.configCard}>
+            <Text style={styles.configTitle}>📅 Fecha límite fase de grupos</Text>
+            <Text style={styles.configActual}>Actual: {fechaLimite}</Text>
+            <TextInput style={styles.configInput} value={nuevaFechaLimite} onChangeText={setNuevaFechaLimite} placeholder="YYYY-MM-DD HH:MM:SS" autoCapitalize="none" />
+            <Text style={styles.configHint}>Ejemplo: 2026-06-11 12:00:00</Text>
+            <TouchableOpacity style={styles.configBtn} onPress={guardarFechaLimite}>
+              <Text style={styles.guardarTxt}>💾 Guardar fecha límite grupos</Text>
             </TouchableOpacity>
           </View>
-        );
-      })}
-    </View>
-  </ScrollView>
-)}
+
+          <View style={[styles.configCard, { marginTop: 12 }]}>
+            <Text style={styles.configTitle}>🏆 Habilitar Fases Eliminatorias</Text>
+            {[
+              { clave: 'fase_r16_habilitada', fechaClave: 'fecha_limite_r16', label: 'Fase de 32 (R16)' },
+              { clave: 'fase_r8_habilitada', fechaClave: 'fecha_limite_r8', label: 'Fase de 16 (R8)' },
+              { clave: 'fase_r4_habilitada', fechaClave: 'fecha_limite_r4', label: 'Cuartos de Final' },
+              { clave: 'fase_semi_habilitada', fechaClave: 'fecha_limite_semi', label: 'Semifinales' },
+              { clave: 'fase_tercer_habilitada', fechaClave: 'fecha_limite_tercer', label: '3er y 4to Lugar' },
+              { clave: 'fase_final_habilitada', fechaClave: 'fecha_limite_final', label: 'Final' },
+            ].map(fase => {
+              const habilitada = configMap[fase.clave] === 'true';
+              const fechaFase = configMap[fase.fechaClave] || '';
+              return (
+                <View key={fase.clave} style={styles.faseRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.faseLabel}>{fase.label}</Text>
+                    <TextInput
+                      style={styles.faseFechaInput}
+                      value={nuevoConfigMap[fase.fechaClave] || fechaFase}
+                      onChangeText={v => setNuevoConfigMap(prev => ({ ...prev, [fase.fechaClave]: v }))}
+                      placeholder="YYYY-MM-DD HH:MM:SS"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.faseBtn, habilitada ? styles.faseBtnActivo : styles.faseBtnInactivo]}
+                    onPress={() => toggleFase(fase.clave, fase.fechaClave, !habilitada)}>
+                    <Text style={styles.faseBtnTxt}>{habilitada ? '✅ ON' : '⛔ OFF'}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
+
+      {tab === 'equipos' && (
+        <ScrollView style={{ padding: 16 }}>
+          <View style={styles.configCard}>
+            <Text style={styles.configTitle}>🌍 Equipos Pendientes</Text>
+            <Text style={styles.configDesc}>Actualiza los equipos que aún no estaban clasificados.</Text>
+            {equiposPendientes.length === 0 && (
+              <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>✅ Todos los equipos confirmados</Text>
+            )}
+            {equiposPendientes.map(codigo => (
+              <View key={codigo} style={styles.equipoPendienteRow}>
+                <View style={styles.equipoCodigo}>
+                  <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
+                  <Text style={styles.equipoPendienteTxt}>Por confirmar</Text>
+                </View>
+                <TouchableOpacity style={styles.equipoEditarBtn} onPress={() => setEquipoEditar(codigo)}>
+                  <Text style={styles.guardarTxt}>Actualizar</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {equipoEditar !== '' && (
+              <View style={styles.equipoFormCard}>
+                <Text style={styles.configTitle}>Actualizar: {equipoEditar}</Text>
+                <TextInput style={styles.configInput} value={equipoNuevo} onChangeText={setEquipoNuevo} placeholder="Nombre del equipo clasificado" autoCapitalize="words" />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity style={[styles.configBtn, { flex: 1 }]} onPress={actualizarEquipo}>
+                    <Text style={styles.guardarTxt}>💾 Confirmar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.configBtn, { flex: 1, backgroundColor: '#888' }]} onPress={() => { setEquipoEditar(''); setEquipoNuevo(''); }}>
+                    <Text style={styles.guardarTxt}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      )}
+
+      {tab === 'bonos' && (
+        <ScrollView style={{ padding: 16 }}>
+          {[
+            { clave: 'campeon', label: 'Campeón del Mundo', icon: '🏆' },
+            { clave: 'subcampeon', label: 'Subcampeón', icon: '🥈' },
+            { clave: 'tercer_lugar', label: '3er Lugar', icon: '🥉' },
+            { clave: 'cuarto_lugar', label: '4to Lugar', icon: '4️⃣' },
+            { clave: 'goleador', label: 'Selección Goleadora', icon: '⚽' },
+            { clave: 'portero', label: 'Portero Menos Vencido', icon: '🧤' },
+          ].map(bono => (
+            <View key={bono.clave} style={styles.bonoCard}>
+              <Text style={styles.bonoTitulo}>{bono.icon} {bono.label}</Text>
+              {resultadosBonos[`resultado_bono_${bono.clave}`] && (
+                <Text style={styles.bonoActual}>Actual: {resultadosBonos[`resultado_bono_${bono.clave}`]}</Text>
+              )}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {equipos.map(equipo => (
+                  <TouchableOpacity
+                    key={equipo}
+                    style={[styles.bonoEquipoBtn, resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnActivo]}
+                    onPress={() => guardarResultadoBono(bono.clave, equipo)}>
+                    {BANDERAS[equipo.toLowerCase()] && (
+                      <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={styles.bandera} />
+                    )}
+                    <Text style={[styles.bonoEquipoBtnTxt, resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ))}
+
+          <View style={[styles.bonoCard, { marginTop: 8 }]}>
+            <Text style={styles.bonoTitulo}>🥇 Líderes de Grupo</Text>
+            {['A','B','C','D','E','F','G','H','I','J','K','L'].map(grupo => (
+              <View key={grupo} style={styles.grupoBonoRow}>
+                <Text style={styles.grupoBonoLabel}>Grupo {grupo}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                  {equipos.map(equipo => (
+                    <TouchableOpacity
+                      key={equipo}
+                      style={[styles.bonoEquipoBtnSmall, resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnActivo]}
+                      onPress={() => guardarResultadoBono(`lider_${grupo}`, equipo)}>
+                      {BANDERAS[equipo.toLowerCase()] && (
+                        <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={{ width: 14, height: 10, borderRadius: 2 }} />
+                      )}
+                      <Text style={[styles.bonoEquipoBtnSmallTxt, resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.bonoCard, { marginTop: 8, marginBottom: 30 }]}>
+            <Text style={styles.bonoTitulo}>3️⃣ Mejores Terceros (selecciona 8)</Text>
+            <Text style={styles.bonoActual}>Seleccionados: {Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length}/8</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {equipos.map(equipo => {
+                const yaSeleccionado = Object.keys(resultadosBonos).some(k => k.startsWith('resultado_bono_mejor_tercero') && resultadosBonos[k] === equipo);
+                return (
+                  <TouchableOpacity
+                    key={equipo}
+                    style={[styles.bonoEquipoBtnGrid, yaSeleccionado && styles.bonoEquipoBtnActivo]}
+                    onPress={() => {
+                      if (yaSeleccionado) return;
+                      const count = Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length;
+                      if (count >= 8) { Alert.alert('Máximo 8', 'Ya seleccionaste los 8 mejores terceros'); return; }
+                      guardarResultadoBono(`mejor_tercero_${count + 1}`, equipo);
+                    }}>
+                    {BANDERAS[equipo.toLowerCase()] && (
+                      <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={styles.bandera} />
+                    )}
+                    <Text style={[styles.bonoEquipoBtnTxt, yaSeleccionado && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -671,12 +511,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   noAdmin: { fontSize: 16, color: '#888', textAlign: 'center' },
-  header: { backgroundColor: '#1a237e', padding: 20, alignItems: 'center' },
-  headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   tabs: { flexDirection: 'row', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
   tabBtn: { flex: 1, padding: 14, alignItems: 'center' },
   tabBtnActivo: { borderBottomWidth: 3, borderBottomColor: '#1a237e' },
-  tabTxt: { fontSize: 12, fontWeight: 'bold', color: '#888' },
+  tabTxt: { fontSize: 18, color: '#888' },
   tabTxtActivo: { color: '#1a237e' },
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
   cardCompleto: { borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
@@ -693,6 +531,8 @@ const styles = StyleSheet.create({
   guion: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   guardarBtn: { backgroundColor: '#1a237e', borderRadius: 8, padding: 10, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 13 },
+  borrarBtn: { backgroundColor: '#ffebee', borderRadius: 8, padding: 8, alignItems: 'center', marginTop: 6 },
+  borrarTxt: { color: '#c62828', fontWeight: 'bold', fontSize: 12 },
   userCard: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8, elevation: 1 },
   userInfo: { flex: 1 },
   userName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
@@ -711,29 +551,29 @@ const styles = StyleSheet.create({
   configInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 6, color: '#333' },
   configHint: { fontSize: 11, color: '#aaa', marginBottom: 12 },
   configBtn: { backgroundColor: '#1a237e', borderRadius: 8, padding: 12, alignItems: 'center' },
+  faseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  faseLabel: { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 4 },
+  faseFechaInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, padding: 6, fontSize: 11, color: '#333' },
+  faseBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth: 70, alignItems: 'center' },
+  faseBtnActivo: { backgroundColor: '#2e7d32' },
+  faseBtnInactivo: { backgroundColor: '#888' },
+  faseBtnTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   equipoPendienteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-equipoCodigo: { flex: 1 },
-equipoCodigoTxt: { fontSize: 15, fontWeight: 'bold', color: '#333' },
-equipoPendienteTxt: { fontSize: 11, color: '#f9a825' },
-equipoEditarBtn: { backgroundColor: '#1a237e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-equipoFormCard: { backgroundColor: '#f0f2f5', borderRadius: 10, padding: 14, marginTop: 14 },
-faseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-faseLabel: { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 4 },
-faseFechaInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, padding: 6, fontSize: 11, color: '#333' },
-faseBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth: 70, alignItems: 'center' },
-faseBtnActivo: { backgroundColor: '#2e7d32' },
-faseBtnInactivo: { backgroundColor: '#888' },
-faseBtnTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-bonoCard: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
-bonoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#1a237e', marginBottom: 4 },
-bonoActual: { fontSize: 12, color: '#2e7d32', fontWeight: 'bold' },
-bonoEquipoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginRight: 6, minWidth: 80 },
-bonoEquipoBtnActivo: { backgroundColor: '#1a237e' },
-bonoEquipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
-bonoEquipoBtnTxtActivo: { color: 'white' },
-bonoEquipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5', marginRight: 4 },
-bonoEquipoBtnSmallTxt: { fontSize: 10, fontWeight: 'bold', color: '#333' },
-bonoEquipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
-grupoBonoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-grupoBonoLabel: { fontSize: 12, fontWeight: 'bold', color: '#1a237e', width: 60 },
+  equipoCodigo: { flex: 1 },
+  equipoCodigoTxt: { fontSize: 15, fontWeight: 'bold', color: '#333' },
+  equipoPendienteTxt: { fontSize: 11, color: '#f9a825' },
+  equipoEditarBtn: { backgroundColor: '#1a237e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  equipoFormCard: { backgroundColor: '#f0f2f5', borderRadius: 10, padding: 14, marginTop: 14 },
+  bonoCard: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
+  bonoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#1a237e', marginBottom: 4 },
+  bonoActual: { fontSize: 12, color: '#2e7d32', fontWeight: 'bold' },
+  bonoEquipoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginRight: 6, minWidth: 80 },
+  bonoEquipoBtnActivo: { backgroundColor: '#1a237e' },
+  bonoEquipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
+  bonoEquipoBtnTxtActivo: { color: 'white' },
+  bonoEquipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5', marginRight: 4 },
+  bonoEquipoBtnSmallTxt: { fontSize: 10, fontWeight: 'bold', color: '#333' },
+  bonoEquipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
+  grupoBonoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  grupoBonoLabel: { fontSize: 12, fontWeight: 'bold', color: '#1a237e', width: 60 },
 });
