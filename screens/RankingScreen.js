@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { supabase } from '../lib/supabase';
 
-export default function RankingScreen() {
+export default function RankingScreen({ recargar }) {
   const [ranking, setRanking] = useState([]);
   const [movimientos, setMovimientos] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    cargarRanking();
-  }, []);
+  if (recargar > 0) cargarRanking();
+}, [recargar]);
 
   async function cargarRanking() {
     try {
@@ -68,6 +68,7 @@ export default function RankingScreen() {
   if (loading) return (
     <View style={styles.center}>
       <ActivityIndicator size="large" color="#2e7d32" />
+      <Text style={{ marginTop: 16, fontSize: 14, color: '#2e7d32', fontWeight: 'bold' }}>Toca el boton actualizar en la parte superior...</Text>
     </View>
   );
 

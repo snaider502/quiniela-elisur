@@ -34,7 +34,7 @@ const BONOS = [
   { clave: 'portero', label: 'Selección Portero Menos Vencido', pts: 15, icon: '🧤' },
 ];
 
-export default function BonosScreen() {
+export default function BonosScreen({ recargar }) {
   const [equipos, setEquipos] = useState([]);
   const [equiposPorGrupo, setEquiposPorGrupo] = useState({});
   const [predicciones, setPredicciones] = useState({});
@@ -47,8 +47,8 @@ export default function BonosScreen() {
   const [fechaLimite, setFechaLimite] = useState(null);
 
   useEffect(() => {
-    iniciar();
-  }, []);
+  if (recargar > 0) iniciar();
+}, [recargar]);
 
   async function iniciar() {
     const { data: { user } } = await supabase.auth.getUser();

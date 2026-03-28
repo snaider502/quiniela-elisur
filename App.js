@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, ActivityIndicator, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { supabase } from './lib/supabase';
 import LoginScreen from './screens/LoginScreen';
 import RankingScreen from './screens/RankingScreen';
@@ -67,6 +67,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activo, setActivo] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [recargar, setRecargar] = useState(0);
 
   useEffect(() => {
     let intervalo;
@@ -110,11 +111,16 @@ export default function App() {
     setLoading(false);
   }
 
-  if (loading) return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#2e7d32" />
-    </View>
-  );
+ if (loading) return (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f2f5' }}>
+    <Image
+      source={require('./assets/loading.gif')}
+      style={{ width: 200, height: 200 }}
+      resizeMode="contain"
+    />
+    <Text style={{ marginTop: 16, fontSize: 14, color: '#2e7d32', fontWeight: 'bold' }}>Cargando...</Text>
+  </View>
+);
 
   if (!session) return <LoginScreen />;
   if (!activo) return <PagoScreen onRefresh={setActivo} />;
@@ -123,42 +129,66 @@ export default function App() {
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={{
-          headerShown: true,
-          headerStyle: { backgroundColor: '#2e7d32' },
-          headerTintColor: 'white',
-          headerTitle: () => (
-            <View>
-              <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold' }}>🏆 Quiniela Mundial 2026</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10 }}>FIFA World Cup 2026</Text>
-            </View>
+  headerShown: true,
+  headerStyle: { backgroundColor: '#2e7d32' },
+  headerTintColor: 'white',
+  headerTitleAlign: 'center',
+  headerTitle: () => (
+    <View style={{ alignItems: 'center' }}>
+      <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold' }}>🏆 Quiniela Mundial 2026</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10 }}>FIFA World Cup 2026</Text>
+    </View>
+  ),
+          headerLeft: () => (
+            <TouchableOpacity
+              style={{ marginLeft: 16, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
+              onPress={() => setRecargar(prev => prev + 1)}>
+              <Text style={{ color: 'white', fontSize: 14 }}>🔄 recargar </Text>
+            </TouchableOpacity>
           ),
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 16, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
               onPress={() => supabase.auth.signOut()}>
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>🏃 Salir</Text>
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⏻ Salir</Text>
             </TouchableOpacity>
           ),
           tabBarActiveTintColor: '#2e7d32',
           tabBarShowLabel: false,
           tabBarStyle: { height: 65, paddingBottom: 8, paddingTop: 4 },
         }}>
-        <Tab.Screen name="Posiciones" component={RankingScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📊" label="POSICIONES" /> }} />
-        <Tab.Screen name="Partidos" component={PartidosScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="⚽" label="PARTIDOS" /> }} />
-        <Tab.Screen name="Mi Quiniela" component={QuinielaScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📝" label="MI QUINIELA" /> }} />
-        <Tab.Screen name="Bonos" component={BonosScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="⭐" label="BONOS" /> }} />
-        <Tab.Screen name="Predicciones" component={PrediccionesScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" label="PREDICCIONES" /> }} />
-        <Tab.Screen name="Simulador" component={SimuladorScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🧮" label="SIMULADOR" /> }} />
-        <Tab.Screen name="Reglas" component={ReglasScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📜" label="REGLAS" /> }} />
-        <Tab.Screen name="Admin" component={AdminScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" label="ADMIN" /> }} />
+        <Tab.Screen name="Posiciones"
+          options={{ tabBarIcon: () => <TabIcon emoji="📊" label="POSICIONES" /> }}>
+          {() => <RankingScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Partidos"
+          options={{ tabBarIcon: () => <TabIcon emoji="⚽" label="PARTIDOS" /> }}>
+          {() => <PartidosScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Mi Quiniela"
+          options={{ tabBarIcon: () => <TabIcon emoji="📝" label="MI QUINIELA" /> }}>
+          {() => <QuinielaScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Bonos"
+          options={{ tabBarIcon: () => <TabIcon emoji="⭐" label="BONOS" /> }}>
+          {() => <BonosScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Predicciones"
+          options={{ tabBarIcon: () => <TabIcon emoji="🔍" label="PREDICCIONES" /> }}>
+          {() => <PrediccionesScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Simulador"
+          options={{ tabBarIcon: () => <TabIcon emoji="🧮" label="SIMULADOR" /> }}>
+          {() => <SimuladorScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Reglas"
+          options={{ tabBarIcon: () => <TabIcon emoji="📜" label="REGLAS" /> }}>
+          {() => <ReglasScreen recargar={recargar} />}
+        </Tab.Screen>
+        <Tab.Screen name="Admin"
+          options={{ tabBarIcon: () => <TabIcon emoji="⚙️" label="ADMIN" /> }}>
+          {() => <AdminScreen recargar={recargar} />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );

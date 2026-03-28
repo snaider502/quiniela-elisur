@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { ScrollView, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
 
-export default function ReglasScreen() {
+export default function ReglasScreen({ recargar }) {
   const [financiero, setFinanciero] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    cargarFinanciero();
-  }, []);
+  if (recargar > 0) cargarFinanciero();
+}, [recargar]);
 
   async function cargarFinanciero() {
     const { data } = await supabase.from('resumen_financiero').select('*').single();

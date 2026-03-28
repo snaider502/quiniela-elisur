@@ -26,7 +26,7 @@ function getBandera(pais) {
   return code ? `https://flagcdn.com/h20/${code}.png` : null;
 }
 
-export default function SimuladorScreen() {
+export default function SimuladorScreen({ recargar }) {
   const [partidos, setPartidos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [predicciones, setPredicciones] = useState([]);
@@ -36,7 +36,9 @@ export default function SimuladorScreen() {
   const [loading, setLoading] = useState(true);
   const [simulando, setSimulando] = useState(false);
 
-  useEffect(() => { cargarDatos(); }, []);
+  useEffect(() => {
+  if (recargar > 0) cargarDatos();
+}, [recargar]);
 
   async function cargarDatos() {
     const [p, u, pred, res] = await Promise.all([

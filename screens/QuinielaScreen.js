@@ -34,7 +34,7 @@ const FASES_MAP = {
   'FINAL':                { hab: 'fase_final_habilitada', limite: 'fecha_limite_final' },
 };
 
-export default function QuinielaScreen() {
+export default function QuinielaScreen({ recargar }) {
   const [partidos, setPartidos] = useState([]);
   const [predicciones, setPredicciones] = useState({});
   const [prediccionesGuardadas, setPrediccionesGuardadas] = useState({});
@@ -44,7 +44,9 @@ export default function QuinielaScreen() {
   const [guardando, setGuardando] = useState(false);
   const [userId, setUserId] = useState(null);
 
-  useEffect(() => { iniciar(); }, []);
+ useEffect(() => {
+  if (recargar > 0) iniciar();
+}, [recargar]);
 
   async function iniciar() {
     const { data: { user } } = await supabase.auth.getUser();

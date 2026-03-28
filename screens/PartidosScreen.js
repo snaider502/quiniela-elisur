@@ -65,13 +65,15 @@ function calcularTablaGrupo(partidos, resultados) {
   });
 }
 
-export default function PartidosScreen() {
+export default function PartidosScreen({ recargar }) {
   const [partidos, setPartidos] = useState([]);
   const [resultadosMap, setResultadosMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [grupoActivo, setGrupoActivo] = useState('TODOS');
 
-  useEffect(() => { cargarPartidos(); }, []);
+  useEffect(() => {
+  if (recargar > 0) cargarPartidos();
+}, [recargar]);
 
   async function cargarPartidos() {
     const [p, r] = await Promise.all([

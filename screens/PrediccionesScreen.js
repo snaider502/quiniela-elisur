@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { calcularPuntos } from '../utils/calcularPuntos';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 const BANDERAS = {
   'méxico': 'mx', 'sudáfrica': 'za', 'corea del sur': 'kr',
@@ -24,7 +27,7 @@ function getBandera(pais) {
   return code ? `https://flagcdn.com/h20/${code}.png` : null;
 }
 
-export default function PrediccionesScreen() {
+export default function PrediccionesScreen({ recargar }) {
   const [partidos, setPartidos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [predicciones, setPredicciones] = useState([]);
@@ -32,7 +35,9 @@ export default function PrediccionesScreen() {
   const [loading, setLoading] = useState(true);
   const [partidoActivo, setPartidoActivo] = useState(null);
 
-  useEffect(() => { cargarDatos(); }, []);
+ useEffect(() => {
+  if (recargar > 0) cargarDatos();
+}, [recargar]);
 
   async function cargarDatos() {
     const [p, u, pred, res] = await Promise.all([
@@ -81,6 +86,65 @@ export default function PrediccionesScreen() {
   if (loading) return (
     <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>
   );
+
+async function exportarExcel() {
+  const { data: partidos } = await supabase
+    .from('partidos')
+    .select('*')
+    .eq('tipo', 'partido')
+    .order('numero', { ascending: true });
+
+  const { data: preds } = await supabase
+    .from('predicciones')
+    .select('*');
+
+  const { data: ress } = await supabase
+    .from('resultados')
+    .select('*');
+
+  if (!partidos || !usuarios || !preds) return;
+
+  const resMap = {};
+  ress?.forEach(r => { resMap[r.partido_id] = r; });
+
+  let csv = 'Participante,' + partidos.map(p => `#${p.numero} ${p.equipo_local} vs ${p.equipo_visita}`).join(',') + ',TOTAL PTS\n';
+
+  usuarios.forEach(u => {
+    let fila = `"${u.nombre}"`;
+    partidos.forEach(p => {
+      const pred = preds.find(pr => pr.usuario_id === u.id && pr.partido_id === p.id);
+      const res = resMap[p.id];
+      if (!pred) {
+        fila += ',-';
+      } else {
+        const predStr = `${pred.goles_local}-${pred.goles_visita}`;
+        if (res) {
+          const realStr = `${res.goles_local}-${res.goles_visita}`;
+          const r = calcularPuntos(realStr, predStr, p.titulo);
+          fila += `,${predStr}(+${r.pts}pts)`;
+        } else {
+          fila += `,${predStr}`;
+        }
+      }
+    });
+    fila += `,${u.puntos}`;
+    csv += fila + '\n';
+  });
+
+  if (Platform.OS === 'web') {
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `quiniela_mundial_2026_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    const path = FileSystem.documentDirectory + `quiniela_${new Date().toISOString().split('T')[0]}.csv`;
+    await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+    await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Exportar Quiniela' });
+  }
+}
 
   const resultado = partidoActivo ? getResultado(partidoActivo.id) : null;
 
@@ -143,7 +207,9 @@ export default function PrediccionesScreen() {
           </View>
         </View>
       )}
-
+<TouchableOpacity style={styles.exportBtn} onPress={exportarExcel}>
+  <Text style={styles.exportTxt}>📥 Exportar Excel - los resultados de todos los usuarios</Text>
+</TouchableOpacity>
       <FlatList
         data={usuarios}
         keyExtractor={u => u.id}
@@ -210,4 +276,6 @@ predTxt: { fontSize: 14, fontWeight: 'bold', color: '#333' },
 ptsBubble: { backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
 ptsBadge: { fontSize: 10, fontWeight: 'bold', color: '#333' },
 userPuntos: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', width: 55, textAlign: 'right' },
+exportBtn: { backgroundColor: '#1b5e20', marginHorizontal: 12, marginVertical: 8, borderRadius: 10, padding: 10, alignSelf: 'flex-end' },
+exportTxt: { color: 'white', fontWeight: 'bold', fontSize: 13, textAlign: 'right' },
 });
