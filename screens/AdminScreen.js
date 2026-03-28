@@ -202,13 +202,16 @@ export default function AdminScreen() {
   }
 
   async function actualizarEquipo() {
-    if (!equipoEditar || !equipoNuevo) { Alert.alert('Error', 'Completa ambos campos'); return; }
-    await supabase.rpc('actualizar_equipo', { codigo_viejo: equipoEditar, nombre_nuevo: equipoNuevo });
+  if (!equipoEditar || !equipoNuevo) { Alert.alert('Error', 'Completa ambos campos'); return; }
+  const { error } = await supabase.rpc('actualizar_equipo', { codigo_viejo: equipoEditar, nombre_nuevo: equipoNuevo });
+  if (error) Alert.alert('Error', error.message);
+  else {
     Alert.alert('✅ Listo', `${equipoEditar} actualizado a ${equipoNuevo}`);
     setEquipoEditar(''); setEquipoNuevo('');
     await cargarEquipos();
     await cargarDatos();
   }
+}
 
   async function guardarResultadoBono(clave, valor) {
     const claveCompleta = `resultado_bono_${clave}`;
@@ -387,41 +390,97 @@ export default function AdminScreen() {
       )}
 
       {tab === 'equipos' && (
-        <ScrollView style={{ padding: 16 }}>
-          <View style={styles.configCard}>
-            <Text style={styles.configTitle}>🌍 Equipos Pendientes</Text>
-            <Text style={styles.configDesc}>Actualiza los equipos que aún no estaban clasificados.</Text>
-            {equiposPendientes.length === 0 && (
-              <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>✅ Todos los equipos confirmados</Text>
-            )}
-            {equiposPendientes.map(codigo => (
-              <View key={codigo} style={styles.equipoPendienteRow}>
-                <View style={styles.equipoCodigo}>
-                  <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
-                  <Text style={styles.equipoPendienteTxt}>Por confirmar</Text>
-                </View>
-                <TouchableOpacity style={styles.equipoEditarBtn} onPress={() => setEquipoEditar(codigo)}>
-                  <Text style={styles.guardarTxt}>Actualizar</Text>
+  <ScrollView style={{ padding: 16 }}>
+    <View style={styles.configCard}>
+      <Text style={styles.configTitle}>🌍 Actualizar Equipos</Text>
+      <Text style={styles.configDesc}>
+        Busca el nombre actual del equipo y escribe el nombre correcto. Útil para playoffs y fase eliminatoria.
+      </Text>
+
+      <TextInput
+        style={styles.configInput}
+        value={equipoEditar}
+        onChangeText={setEquipoEditar}
+        placeholder="Nombre actual (ej: 1A, Ganador P73, A4...)"
+        autoCapitalize="none"
+      />
+      <TextInput
+        style={styles.configInput}
+        value={equipoNuevo}
+        onChangeText={setEquipoNuevo}
+        placeholder="Nombre nuevo (ej: Argentina, España...)"
+        autoCapitalize="words"
+      />
+
+      <TouchableOpacity style={styles.configBtn} onPress={actualizarEquipo}>
+        <Text style={styles.guardarTxt}>💾 Actualizar Equipo</Text>
+      </TouchableOpacity>
+    </View>
+
+    <View style={[styles.configCard, { marginTop: 12 }]}>
+      <Text style={styles.configTitle}>⏳ Equipos Pendientes de Clasificar</Text>
+      {equiposPendientes.length === 0 && (
+        <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>
+          ✅ Todos los equipos confirmados
+        </Text>
+      )}
+      {equiposPendientes.map(codigo => (
+        <TouchableOpacity
+          key={codigo}
+          style={styles.equipoPendienteRow}
+          onPress={() => setEquipoEditar(codigo)}>
+          <View style={styles.equipoCodigo}>
+            <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
+            <Text style={styles.equipoPendienteTxt}>Toca para editar</Text>
+          </View>
+          <Text style={{ fontSize: 18 }}>→</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+
+    <View style={[styles.configCard, { marginTop: 12, marginBottom: 30 }]}>
+      <Text style={styles.configTitle}>🏆 Fase Eliminatoria</Text>
+      <Text style={styles.configDesc}>
+        Equipos pendientes en fase eliminatoria. Toca uno para pre-llenar el campo de arriba.
+      </Text>
+      {partidos
+        .filter(p => !['A','B','C','D','E','F','G','H','I','J','K','L'].includes(p.grupo))
+        .filter(p => 
+          p.equipo_local.startsWith('1') || 
+          p.equipo_local.startsWith('2') || 
+          p.equipo_local.startsWith('3') ||
+          p.equipo_local.startsWith('Ganador') ||
+          p.equipo_local.startsWith('Perdedor') ||
+          p.equipo_visita.startsWith('1') ||
+          p.equipo_visita.startsWith('2') ||
+          p.equipo_visita.startsWith('3') ||
+          p.equipo_visita.startsWith('Ganador') ||
+          p.equipo_visita.startsWith('Perdedor')
+        )
+        .map(p => (
+          <View key={p.id} style={styles.equipoPendienteRow}>
+            <View style={styles.equipoCodigo}>
+              <Text style={styles.equipoCodigoTxt}>#{p.numero} {p.grupo}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                <TouchableOpacity
+                  style={styles.equipoEditarBtn}
+                  onPress={() => setEquipoEditar(p.equipo_local)}>
+                  <Text style={styles.guardarTxt}>{p.equipo_local}</Text>
+                </TouchableOpacity>
+                <Text style={{ alignSelf: 'center', color: '#888' }}>vs</Text>
+                <TouchableOpacity
+                  style={styles.equipoEditarBtn}
+                  onPress={() => setEquipoEditar(p.equipo_visita)}>
+                  <Text style={styles.guardarTxt}>{p.equipo_visita}</Text>
                 </TouchableOpacity>
               </View>
-            ))}
-            {equipoEditar !== '' && (
-              <View style={styles.equipoFormCard}>
-                <Text style={styles.configTitle}>Actualizar: {equipoEditar}</Text>
-                <TextInput style={styles.configInput} value={equipoNuevo} onChangeText={setEquipoNuevo} placeholder="Nombre del equipo clasificado" autoCapitalize="words" />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity style={[styles.configBtn, { flex: 1 }]} onPress={actualizarEquipo}>
-                    <Text style={styles.guardarTxt}>💾 Confirmar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.configBtn, { flex: 1, backgroundColor: '#888' }]} onPress={() => { setEquipoEditar(''); setEquipoNuevo(''); }}>
-                    <Text style={styles.guardarTxt}>Cancelar</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+            </View>
           </View>
-        </ScrollView>
-      )}
+        ))
+      }
+    </View>
+  </ScrollView>
+)}
 
       {tab === 'bonos' && (
         <ScrollView style={{ padding: 16 }}>
