@@ -46,9 +46,8 @@ export default function BonosScreen({ recargar }) {
   const [userId, setUserId] = useState(null);
   const [fechaLimite, setFechaLimite] = useState(null);
 
-  useEffect(() => {
-  if (recargar > 0) iniciar();
-}, [recargar]);
+  useEffect(() => { iniciar(); }, []);
+  useEffect(() => { if (recargar > 0) iniciar(); }, [recargar]);
 
   async function iniciar() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -188,48 +187,14 @@ export default function BonosScreen({ recargar }) {
     Alert.alert('✅ Listo', `Se guardaron ${guardados} predicciones de bonos.`);
   }
 
-  function EquipoSelector({ clave, equiposLista }) {
-    return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.equiposScroll}>
-        {equiposLista.map(equipo => {
-          const seleccionado = predicciones[clave] === equipo;
-          const colorBono = seleccionado ? getColorBono(clave, equipo) : null;
-          return (
-            <TouchableOpacity
-              key={equipo}
-              style={[
-                styles.equipoBtn,
-                seleccionado && !colorBono && styles.equipoBtnSeleccionado,
-                colorBono === 'exact' && styles.equipoBtnExact,
-                colorBono === 'wrong' && styles.equipoBtnWrong,
-                !habilitado && styles.equipoBtnDisabled,
-              ]}
-              onPress={() => seleccionarEquipo(clave, equipo)}>
-              {getBandera(equipo) && (
-                <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtn} />
-              )}
-              <Text style={[
-                styles.equipoBtnTxt,
-                (seleccionado || colorBono) && styles.equipoBtnTxtActivo,
-              ]} numberOfLines={1}>{equipo}</Text>
-              {colorBono === 'exact' && <Text style={styles.checkIcon}>✓</Text>}
-              {colorBono === 'wrong' && <Text style={styles.wrongIcon}>✗</Text>}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    );
-  }
-
   if (loading) return (
     <View style={styles.center}><ActivityIndicator size="large" color="#f57f17" /></View>
   );
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>⭐ Bonos Extra</Text>
-        {!habilitado && <Text style={styles.headerSub}>🔒 Plazo vencido</Text>}
+      <View style={styles.alertContainer}>
+        {!habilitado && <Text style={styles.alertTxt}>🔒 Plazo vencido</Text>}
       </View>
 
       {BONOS.map(bono => {
@@ -264,7 +229,34 @@ export default function BonosScreen({ recargar }) {
                 </View>
               )}
             </View>
-            <EquipoSelector clave={bono.clave} equiposLista={equipos} />
+            <View style={styles.equiposGrid}>
+              {equipos.map(equipo => {
+                const seleccionado = predicciones[bono.clave] === equipo;
+                const colorBono = seleccionado ? getColorBono(bono.clave, equipo) : null;
+                return (
+                  <TouchableOpacity
+                    key={equipo}
+                    style={[
+                      styles.equipoBtnGrid,
+                      seleccionado && !colorBono && styles.equipoBtnSeleccionado,
+                      colorBono === 'exact' && styles.equipoBtnExact,
+                      colorBono === 'wrong' && styles.equipoBtnWrong,
+                      !habilitado && styles.equipoBtnDisabled,
+                    ]}
+                    onPress={() => seleccionarEquipo(bono.clave, equipo)}>
+                    {getBandera(equipo) && (
+                      <Image source={{ uri: getBandera(equipo) }} style={styles.banderaBtn} />
+                    )}
+                    <Text style={[
+                      styles.equipoBtnTxt,
+                      (seleccionado || colorBono) && styles.equipoBtnTxtActivo,
+                    ]} numberOfLines={1}>{equipo}</Text>
+                    {colorBono === 'exact' && <Text style={styles.checkIcon}>✓</Text>}
+                    {colorBono === 'wrong' && <Text style={styles.wrongIcon}>✗</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         );
       })}
@@ -286,7 +278,7 @@ export default function BonosScreen({ recargar }) {
               colorLider === 'wrong' && styles.grupoRowWrong,
             ]}>
               <Text style={styles.grupoLabel}>Grupo {grupo}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+              <View style={styles.grupoEquipos}>
                 {(equiposPorGrupo[grupo] || []).map(equipo => {
                   const sel = lideresGrupo[grupo] === equipo;
                   const color = sel ? getColorBono(`lider_${grupo}`, equipo) : null;
@@ -311,7 +303,7 @@ export default function BonosScreen({ recargar }) {
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           );
         })}
@@ -376,9 +368,8 @@ export default function BonosScreen({ recargar }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#f57f17', padding: 20, alignItems: 'center' },
-  headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 4 },
+  alertContainer: { padding: 8, alignItems: 'center' },
+  alertTxt: { color: '#c62828', fontWeight: 'bold', fontSize: 13 },
   seccion: { backgroundColor: 'white', margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, elevation: 2 },
   seccionExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
   seccionWrong: { backgroundColor: '#ffebee', borderLeftWidth: 4, borderLeftColor: '#c62828' },
@@ -391,26 +382,25 @@ const styles = StyleSheet.create({
   badgeWrong: { backgroundColor: '#ffcdd2' },
   banderaBadge: { width: 18, height: 12, borderRadius: 2 },
   seleccionadoTxt: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
-  equiposScroll: { maxHeight: 60 },
-  equipoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginRight: 6, minWidth: 80 },
+  equiposGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  equipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
   equipoBtnSeleccionado: { backgroundColor: '#1565c0' },
   equipoBtnExact: { backgroundColor: '#2e7d32' },
   equipoBtnWrong: { backgroundColor: '#c62828' },
   equipoBtnDisabled: { opacity: 0.5 },
-  equipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
+  equipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333', flex: 1 },
   equipoBtnTxtActivo: { color: 'white' },
   banderaBtn: { width: 18, height: 12, borderRadius: 2 },
   checkIcon: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   wrongIcon: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  grupoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8, padding: 4, borderRadius: 8 },
+  grupoRow: { marginBottom: 10, padding: 6, borderRadius: 8 },
   grupoRowExact: { backgroundColor: '#e8f5e9' },
   grupoRowWrong: { backgroundColor: '#ffebee' },
-  grupoLabel: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', width: 55 },
-  equipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5', marginRight: 4 },
+  grupoLabel: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', marginBottom: 6 },
+  grupoEquipos: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  equipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5' },
   banderaBtnSmall: { width: 14, height: 10, borderRadius: 2 },
   equipoBtnSmallTxt: { fontSize: 10, fontWeight: 'bold', color: '#333' },
-  equiposGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  equipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
   footer: { margin: 12, marginTop: 16 },
   guardarBtn: { backgroundColor: '#f57f17', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
