@@ -14,7 +14,16 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
-  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa','suecia': 'se',
+'turquía': 'tr', 'turquia': 'tr',
+'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
+'bosnia y herzegovina': 'ba', 'bosnia': 'ba',
+'italia': 'it','r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
+'jamaica': 'jm',
+'irak': 'iq', 'iraq': 'iq',
+'bolivia': 'bo',
+'nueva caledonia': 'nc',
+'surinam': 'sr',
 };
 
 function getBandera(pais) {
@@ -30,8 +39,8 @@ const BONOS = [
   { clave: 'subcampeon', label: 'Subcampeón', pts: 20, icon: '🥈' },
   { clave: 'tercer_lugar', label: '3er Lugar', pts: 10, icon: '🥉' },
   { clave: 'cuarto_lugar', label: '4to Lugar', pts: 5, icon: '4️⃣' },
-  { clave: 'goleador', label: 'Selección Goleadora', pts: 15, icon: '⚽' },
-  { clave: 'portero', label: 'Selección Portero Menos Vencido', pts: 15, icon: '🧤' },
+  { clave: 'goleador', label: 'Selección del jugador Goleador', pts: 15, icon: '⚽' },
+  { clave: 'portero', label: 'Selección del Portero Menos Vencido', pts: 15, icon: '🧤' },
 ];
 
 export default function BonosScreen({ recargar }) {

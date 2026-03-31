@@ -15,7 +15,16 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
-  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa','suecia': 'se',
+'turquía': 'tr', 'turquia': 'tr',
+'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
+'bosnia y herzegovina': 'ba', 'bosnia': 'ba',
+'italia': 'it','r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
+'jamaica': 'jm',
+'irak': 'iq', 'iraq': 'iq',
+'bolivia': 'bo',
+'nueva caledonia': 'nc',
+'surinam': 'sr',
 };
 
 function getBandera(pais) {
