@@ -67,6 +67,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activo, setActivo] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [nombreUsuario, setNombreUsuario] = useState('');
   const [recargar, setRecargar] = useState(0);
 
   useEffect(() => {
@@ -106,10 +107,11 @@ export default function App() {
   }, [userId]);
 
   async function verificarActivo(uid) {
-    const { data } = await supabase.from('usuarios').select('activo, es_admin').eq('id', uid).single();
-    setActivo(data?.activo === true || data?.es_admin === true);
-    setLoading(false);
-  }
+  const { data } = await supabase.from('usuarios').select('activo, es_admin, nombre').eq('id', uid).single();
+  setActivo(data?.activo === true || data?.es_admin === true);
+  setNombreUsuario(data?.nombre || '');
+  setLoading(false);
+}
 
  if (loading) return (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f2f5' }}>
@@ -147,12 +149,19 @@ export default function App() {
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity
-              style={{ marginRight: 16, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
-              onPress={() => supabase.auth.signOut()}>
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⏻ Salir</Text>
-            </TouchableOpacity>
-          ),
+  <View style={{ alignItems: 'flex-end', marginRight: 16, gap: 2 }}>
+    <TouchableOpacity
+      style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
+      onPress={() => supabase.auth.signOut()}>
+      <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>⏻ Salir</Text>
+    </TouchableOpacity>
+    {nombreUsuario ? (
+      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10 }} numberOfLines={1}>
+        👤 {nombreUsuario}
+      </Text>
+    ) : null}
+  </View>
+),
           tabBarActiveTintColor: '#2e7d32',
           tabBarShowLabel: false,
           tabBarStyle: { height: 65, paddingBottom: 8, paddingTop: 4 },
@@ -166,9 +175,9 @@ export default function App() {
           {() => <PartidosScreen recargar={recargar} />}
         </Tab.Screen>
         <Tab.Screen name="Mi Quiniela"
-          options={{ tabBarIcon: () => <TabIcon emoji="📝" label="MI QUINIELA" /> }}>
-          {() => <QuinielaScreen recargar={recargar} />}
-        </Tab.Screen>
+  options={{ tabBarIcon: () => <TabIcon emoji="📝" label="MI QUINIELA" /> }}>
+  {() => <QuinielaScreen recargar={recargar} activo={activo} />}
+</Tab.Screen>
         <Tab.Screen name="Bonos"
           options={{ tabBarIcon: () => <TabIcon emoji="⭐" label="BONOS" /> }}>
           {() => <BonosScreen recargar={recargar} />}

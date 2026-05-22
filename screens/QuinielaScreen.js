@@ -15,16 +15,13 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
-  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa','suecia': 'se',
-'turquía': 'tr', 'turquia': 'tr',
-'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
-'bosnia y herzegovina': 'ba', 'bosnia': 'ba',
-'italia': 'it','r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
-'jamaica': 'jm',
-'irak': 'iq', 'iraq': 'iq',
-'bolivia': 'bo',
-'nueva caledonia': 'nc',
-'surinam': 'sr',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
+  'suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
+  'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
+  'bosnia y herzegovina': 'ba', 'bosnia': 'ba', 'italia': 'it',
+  'r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
+  'jamaica': 'jm', 'irak': 'iq', 'iraq': 'iq', 'bolivia': 'bo',
+  'nueva caledonia': 'nc', 'surinam': 'sr',
 };
 
 function getBandera(pais) {
@@ -34,6 +31,8 @@ function getBandera(pais) {
 }
 
 const GRUPOS_VALIDOS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+const GRUPOS_FILTRO = ['TODOS', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'R16', 'R8', 'R4', 'SEMI', 'FINAL'];
+
 const FASES_MAP = {
   'Fase eliminatoria 16': { hab: 'fase_r16_habilitada', limite: 'fecha_limite_r16' },
   'Fase eliminatoria 8':  { hab: 'fase_r8_habilitada',  limite: 'fecha_limite_r8' },
@@ -43,7 +42,18 @@ const FASES_MAP = {
   'FINAL':                { hab: 'fase_final_habilitada', limite: 'fecha_limite_final' },
 };
 
-export default function QuinielaScreen({ recargar }) {
+function mapearFiltro(filtro) {
+  const mapa = {
+    'R16': 'Fase eliminatoria 16',
+    'R8': 'Fase eliminatoria 8',
+    'R4': 'Fase eliminatoria 4',
+    'SEMI': 'SEMI-FINAL',
+    'FINAL': 'FINAL',
+  };
+  return mapa[filtro] || filtro;
+}
+
+export default function QuinielaScreen({ recargar, activo }) {
   const [partidos, setPartidos] = useState([]);
   const [predicciones, setPredicciones] = useState({});
   const [prediccionesGuardadas, setPrediccionesGuardadas] = useState({});
@@ -52,30 +62,20 @@ export default function QuinielaScreen({ recargar }) {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [filtroGrupo, setFiltroGrupo] = useState('TODOS');
   const [tiempoRestante, setTiempoRestante] = useState(null);
-  const [mostrarAlerta, setMostrarAlerta] = useState(false);
 
- useEffect(() => {
-  if (recargar > 0) iniciar();
-}, [recargar]);
+  useEffect(() => { iniciar(); }, []);
+  useEffect(() => { if (recargar > 0) iniciar(); }, [recargar]);
 
-useEffect(() => {
-  const timer = setInterval(() => {
-    const tiempo = calcularTiempoRestante();
-    setTiempoRestante(tiempo);
-  }, 1000);
-  return () => clearInterval(timer);
-}, [configuracion]);
-
-useEffect(() => {
-  if (!loading && Object.keys(configuracion).length > 0) {
-    const { faltantes } = calcularProgreso();
-    const tiempo = calcularTiempoRestante();
-    if (tiempo && faltantes > 0) {
-      setMostrarAlerta(true);
-    }
-  }
-}, [loading]);
+  useEffect(() => {
+    if (Object.keys(configuracion).length === 0) return;
+    const timer = setInterval(() => {
+      setTiempoRestante(calcularTiempoRestante());
+    }, 1000);
+    setTiempoRestante(calcularTiempoRestante());
+    return () => clearInterval(timer);
+  }, [configuracion]);
 
   async function iniciar() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -97,10 +97,7 @@ useEffect(() => {
       const map = {};
       const guardadasMap = {};
       data.forEach(p => {
-        map[p.partido_id] = {
-          local: p.goles_local?.toString() ?? '',
-          visita: p.goles_visita?.toString() ?? '',
-        };
+        map[p.partido_id] = { local: p.goles_local?.toString() ?? '', visita: p.goles_visita?.toString() ?? '' };
         guardadasMap[p.partido_id] = true;
       });
       setPredicciones(map);
@@ -126,28 +123,29 @@ useEffect(() => {
     }
   }
 
-function calcularProgreso() {
-  const total = partidos.filter(p => esFaseVisible(p.grupo)).length;
-  const llenados = Object.keys(predicciones).filter(id => {
-    const pred = predicciones[id];
-    return pred?.local !== '' && pred?.visita !== '';
-  }).length;
-  return { llenados, total, faltantes: total - llenados };
-}
+  function calcularProgreso() {
+    if (!partidos || partidos.length === 0) return { llenados: 0, total: 0, faltantes: 0 };
+    const visibles = partidos.filter(p => esFaseVisible(p.grupo));
+    const total = visibles.length;
+    const llenados = visibles.filter(p => {
+      const pred = predicciones[p.id];
+      return pred?.local !== '' && pred?.visita !== '' && pred?.local !== undefined;
+    }).length;
+    return { llenados, total, faltantes: total - llenados };
+  }
 
-function calcularTiempoRestante() {
-  const limite = configuracion['fecha_limite'];
-  if (!limite) return null;
-  const ahora = new Date();
-  const fechaLimite = new Date(limite);
-  const diff = fechaLimite - ahora;
-  if (diff <= 0) return null;
-  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const segundos = Math.floor((diff % (1000 * 60)) / 1000);
-  return { dias, horas, minutos, segundos, diff };
-}
+  function calcularTiempoRestante() {
+    const limite = configuracion['fecha_limite'];
+    if (!limite) return null;
+    const diff = new Date(limite) - new Date();
+    if (diff <= 0) return null;
+    return {
+      dias: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      horas: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+      minutos: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+      segundos: Math.floor((diff % (1000 * 60)) / 1000),
+    };
+  }
 
   function estaHabilitado(partido) {
     if (resultados[partido.id]) return false;
@@ -167,20 +165,18 @@ function calcularTiempoRestante() {
   }
 
   function esFaseVisible(grupo) {
-  if (GRUPOS_VALIDOS.includes(grupo)) {
-    return configuracion['fase_grupos_habilitada'] !== 'false';
+    if (GRUPOS_VALIDOS.includes(grupo)) {
+      return configuracion['fase_grupos_habilitada'] !== 'false';
+    }
+    const fase = FASES_MAP[grupo];
+    if (!fase) return false;
+    return configuracion[fase.hab] === 'true';
   }
-  const fase = FASES_MAP[grupo];
-  if (!fase) return false;
-  return configuracion[fase.hab] === 'true';
-}
 
   function getColorCard(pred, resultado, partido) {
     if (!resultado) return null;
     if (!pred || pred.local === '' || pred.visita === '') return styles.cardWrong;
-    const realStr = `${resultado.goles_local}-${resultado.goles_visita}`;
-    const predStr = `${pred.local}-${pred.visita}`;
-    const r = calcularPuntos(realStr, predStr, partido.titulo);
+    const r = calcularPuntos(`${resultado.goles_local}-${resultado.goles_visita}`, `${pred.local}-${pred.visita}`, partido.titulo);
     if (r.clase === 'exact') return styles.cardExact;
     if (r.clase === 'winner') return styles.cardWinner;
     return styles.cardWrong;
@@ -188,9 +184,7 @@ function calcularTiempoRestante() {
 
   function getPts(pred, resultado, partido) {
     if (!resultado || !pred || pred.local === '' || pred.visita === '') return null;
-    const realStr = `${resultado.goles_local}-${resultado.goles_visita}`;
-    const predStr = `${pred.local}-${pred.visita}`;
-    const r = calcularPuntos(realStr, predStr, partido.titulo);
+    const r = calcularPuntos(`${resultado.goles_local}-${resultado.goles_visita}`, `${pred.local}-${pred.visita}`, partido.titulo);
     return r.show ? r.pts : null;
   }
 
@@ -219,16 +213,11 @@ function calcularTiempoRestante() {
       if (!pred || pred.local === '' || pred.visita === '') continue;
       if (!estaHabilitado(partido)) continue;
       const { error } = await supabase.from('predicciones').upsert({
-        usuario_id: userId,
-        partido_id: partido.id,
-        goles_local: parseInt(pred.local),
-        goles_visita: parseInt(pred.visita),
+        usuario_id: userId, partido_id: partido.id,
+        goles_local: parseInt(pred.local), goles_visita: parseInt(pred.visita),
       }, { onConflict: 'usuario_id,partido_id' });
       if (error) errores++;
-      else {
-        guardados++;
-        setPrediccionesGuardadas(prev => ({ ...prev, [partido.id]: true }));
-      }
+      else { guardados++; setPrediccionesGuardadas(prev => ({ ...prev, [partido.id]: true })); }
     }
     setGuardando(false);
     Alert.alert('Listo', `Se guardaron ${guardados} predicciones.${errores > 0 ? ` ${errores} errores.` : ''}`, [{ text: 'OK' }]);
@@ -241,81 +230,89 @@ function calcularTiempoRestante() {
     return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
   }
 
-  const partidosVisibles = partidos.filter(p => esFaseVisible(p.grupo));
+  const partidosVisibles = partidos
+    .filter(p => esFaseVisible(p.grupo))
+    .filter(p => filtroGrupo === 'TODOS' || p.grupo === mapearFiltro(filtroGrupo));
+
   const hayAlgoHabilitado = partidosVisibles.some(p => estaHabilitado(p));
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>📝 Mi Quiniela</Text>
-        {configuracion['fecha_limite'] && (
-          <Text style={styles.headerSub}>
-            {new Date() <= new Date(configuracion['fecha_limite'])
-              ? `Grupos cierran: ${configuracion['fecha_limite']?.split(' ')[0]}`
-              : '🔒 Fase de grupos cerrada'}
-          </Text>
-        )}
-      </View>
-
-{Object.keys(configuracion).length > 0 && (() => {
-  const { llenados, total, faltantes } = calcularProgreso();
-  const completo = faltantes === 0 && total > 0;
-  return (
-    <View style={[styles.alertaBanner, completo ? styles.alertaCompleta : styles.alertaIncompleta]}>
-      <View style={styles.alertaRow}>
-        <Text style={styles.alertaIcono}>{completo ? '✅' : '⚠️'}</Text>
-        <View style={{ flex: 1 }}>
-          {completo
-            ? <Text style={styles.alertaTxt}>
-                <Text style={styles.alertaBold}>¡Listo! </Text>
-                Has registrado todos los {total} marcadores.
-              </Text>
-            : <Text style={styles.alertaTxt}>
-                Te faltan <Text style={styles.alertaBold}>{faltantes} partidos</Text> por llenar de {total}
-              </Text>
-          }
-        </View>
-        <TouchableOpacity onPress={() => setMostrarAlerta(false)}>
-          <Text style={styles.alertaCerrar}>✕</Text>
-        </TouchableOpacity>
-      </View>
-      {!completo && tiempoRestante && (
-        <View style={styles.cronometro}>
-          <Text style={styles.cronometroLabel}>⏱️ Tiempo restante para llenar:</Text>
-          <View style={styles.cronometroRow}>
-            <View style={styles.cronometroItem}>
-              <Text style={styles.cronometroNum}>{tiempoRestante.dias}</Text>
-              <Text style={styles.cronometroSub}>días</Text>
-            </View>
-            <Text style={styles.cronometroDos}>:</Text>
-            <View style={styles.cronometroItem}>
-              <Text style={styles.cronometroNum}>{String(tiempoRestante.horas).padStart(2,'0')}</Text>
-              <Text style={styles.cronometroSub}>hrs</Text>
-            </View>
-            <Text style={styles.cronometroDos}>:</Text>
-            <View style={styles.cronometroItem}>
-              <Text style={styles.cronometroNum}>{String(tiempoRestante.minutos).padStart(2,'0')}</Text>
-              <Text style={styles.cronometroSub}>min</Text>
-            </View>
-            <Text style={styles.cronometroDos}>:</Text>
-            <View style={styles.cronometroItem}>
-              <Text style={styles.cronometroNum}>{String(tiempoRestante.segundos).padStart(2,'0')}</Text>
-              <Text style={styles.cronometroSub}>seg</Text>
-            </View>
-          </View>
-        </View>
-      )}
+  if (!activo) return (
+    <View style={styles.bloqueado}>
+      <Text style={styles.bloqueadoIcono}>🔒</Text>
+      <Text style={styles.bloqueadoTitulo}>Acceso Bloqueado</Text>
+      <Text style={styles.bloqueadoMsg}>Para participar debes realizar el pago de inscripción de Q200.00 y contactar al administrador.</Text>
     </View>
   );
-})()}
+
+  const { llenados, total, faltantes } = calcularProgreso();
+  const completo = faltantes === 0 && total > 0;
+
+  return (
+    <View style={styles.container}>
+
+      {Object.keys(configuracion).length > 0 && (
+        <View style={[styles.alertaBanner, completo ? styles.alertaCompleta : styles.alertaIncompleta]}>
+          <View style={styles.alertaRow}>
+            <Text style={styles.alertaIcono}>{completo ? '✅' : '⚠️'}</Text>
+            <View style={{ flex: 1 }}>
+              {completo
+                ? <Text style={styles.alertaTxt}><Text style={styles.alertaBold}>¡Listo! </Text>Has registrado todos los {total} marcadores.</Text>
+                : <Text style={styles.alertaTxt}>Te faltan <Text style={styles.alertaBold}>{faltantes} partidos</Text> por llenar de {total}</Text>
+              }
+            </View>
+          </View>
+          {!completo && tiempoRestante && (
+            <View style={styles.cronometro}>
+              <Text style={styles.cronometroLabel}>⏱️ Tiempo restante para llenar:</Text>
+              <View style={styles.cronometroRow}>
+                {[
+                  { val: tiempoRestante.dias, label: 'días' },
+                  { val: tiempoRestante.horas, label: 'hrs' },
+                  { val: tiempoRestante.minutos, label: 'min' },
+                  { val: tiempoRestante.segundos, label: 'seg' },
+                ].map((item, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.cronometroItem}>
+                      <Text style={styles.cronometroNum}>{String(item.val).padStart(2,'0')}</Text>
+                      <Text style={styles.cronometroSub}>{item.label}</Text>
+                    </View>
+                    {i < 3 && <Text style={styles.cronometroDos}>:</Text>}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
 
       <FlatList
         data={partidosVisibles}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
-        renderItem={({ item }) => {
+  keyExtractor={item => item.id.toString()}
+  contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
+  ListHeaderComponent={
+    <FlatList
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      data={GRUPOS_FILTRO.filter(g => {
+        if (g === 'TODOS') return true;
+        const grupoReal = mapearFiltro(g);
+        return partidos.some(p => p.grupo === grupoReal && esFaseVisible(p.grupo));
+      })}
+      keyExtractor={g => g}
+      style={{ backgroundColor: 'white', marginHorizontal: -12, marginTop: -12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+      contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 10 }}
+      renderItem={({ item: g }) => (
+        <TouchableOpacity
+          style={[styles.filtroBtn, filtroGrupo === g && styles.filtroBtnActivo]}
+          onPress={() => setFiltroGrupo(g)}>
+          <Text style={[styles.filtroTxt, filtroGrupo === g && styles.filtroTxtActivo]}>{g}</Text>
+        </TouchableOpacity>
+      )}
+    />
+  }
+  renderItem={({ item }) => {
           const pred = predicciones[item.id] || { local: '', visita: '' };
           const resultado = resultados[item.id];
           const tieneResultado = !!resultado;
@@ -333,66 +330,34 @@ function calcularTiempoRestante() {
                 <Text style={styles.fecha}>{formatearFecha(item.fecha)}</Text>
                 {tieneResultado && (
                   <View style={styles.resultadoRealBadge}>
-                    <Text style={styles.resultadoRealTxt}>
-                      {resultado.goles_local} - {resultado.goles_visita}
-                    </Text>
+                    <Text style={styles.resultadoRealTxt}>{resultado.goles_local} - {resultado.goles_visita}</Text>
                   </View>
                 )}
                 {pts !== null && <Text style={styles.ptsLabel}>+{pts} pts</Text>}
               </View>
-
               <View style={styles.cardMid}>
                 <View style={styles.equipoContainer}>
-                  {getBandera(item.equipo_local) && (
-                    <Image source={{ uri: getBandera(item.equipo_local) }} style={styles.bandera} />
-                  )}
+                  {getBandera(item.equipo_local) && <Image source={{ uri: getBandera(item.equipo_local) }} style={styles.bandera} />}
                   <Text style={styles.equipo} numberOfLines={1}>{item.equipo_local}</Text>
                 </View>
-
                 <View style={styles.inputsRow}>
                   {tieneResultado ? (
                     <View style={styles.predGuardadaBox}>
-                      <Text style={styles.predGuardadaTxt}>
-                        {pred.local !== '' ? `${pred.local} - ${pred.visita}` : '- -'}
-                      </Text>
+                      <Text style={styles.predGuardadaTxt}>{pred.local !== '' ? `${pred.local} - ${pred.visita}` : '- -'}</Text>
                     </View>
                   ) : (
                     <>
-                      <TextInput
-                        style={[styles.input, !habilitado && styles.inputDisabled]}
-                        keyboardType="numeric"
-                        maxLength={2}
-                        value={pred.local}
-                        onChangeText={v => habilitado && setPred(item.id, 'local', v)}
-                        placeholder="-"
-                        placeholderTextColor="#ccc"
-                        editable={habilitado}
-                      />
+                      <TextInput style={[styles.input, !habilitado && styles.inputDisabled]} keyboardType="numeric" maxLength={2} value={pred.local} onChangeText={v => habilitado && setPred(item.id, 'local', v)} placeholder="-" placeholderTextColor="#ccc" editable={habilitado} />
                       <Text style={styles.guion}>-</Text>
-                      <TextInput
-                        style={[styles.input, !habilitado && styles.inputDisabled]}
-                        keyboardType="numeric"
-                        maxLength={2}
-                        value={pred.visita}
-                        onChangeText={v => habilitado && setPred(item.id, 'visita', v)}
-                        placeholder="-"
-                        placeholderTextColor="#ccc"
-                        editable={habilitado}
-                      />
+                      <TextInput style={[styles.input, !habilitado && styles.inputDisabled]} keyboardType="numeric" maxLength={2} value={pred.visita} onChangeText={v => habilitado && setPred(item.id, 'visita', v)} placeholder="-" placeholderTextColor="#ccc" editable={habilitado} />
                     </>
                   )}
                 </View>
-
                 <View style={[styles.equipoContainer, { flexDirection: 'row-reverse' }]}>
-                  {getBandera(item.equipo_visita) && (
-                    <Image source={{ uri: getBandera(item.equipo_visita) }} style={styles.bandera} />
-                  )}
-                  <Text style={[styles.equipo, { textAlign: 'right' }]} numberOfLines={1}>
-                    {item.equipo_visita}
-                  </Text>
+                  {getBandera(item.equipo_visita) && <Image source={{ uri: getBandera(item.equipo_visita) }} style={styles.bandera} />}
+                  <Text style={[styles.equipo, { textAlign: 'right' }]} numberOfLines={1}>{item.equipo_visita}</Text>
                 </View>
               </View>
-
               {estado && (
                 <View style={[styles.estadoRow, estado.estilo]}>
                   <Text style={styles.estadoTxt}>{estado.texto}</Text>
@@ -403,15 +368,10 @@ function calcularTiempoRestante() {
         }}
       />
 
-
-
       {hayAlgoHabilitado && (
         <View style={styles.footer}>
           <TouchableOpacity style={styles.guardarBtn} onPress={guardarTodo} disabled={guardando}>
-            {guardando
-              ? <ActivityIndicator color="white" />
-              : <Text style={styles.guardarTxt}>💾 Guardar Quiniela</Text>
-            }
+            {guardando ? <ActivityIndicator color="white" /> : <Text style={styles.guardarTxt}>💾 Guardar Quiniela</Text>}
           </TouchableOpacity>
         </View>
       )}
@@ -422,9 +382,10 @@ function calcularTiempoRestante() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
-  headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 4 },
+  bloqueado: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#f0f2f5' },
+  bloqueadoIcono: { fontSize: 64, marginBottom: 16 },
+  bloqueadoTitulo: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 12, textAlign: 'center' },
+  bloqueadoMsg: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 22 },
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
   cardExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
   cardWinner: { backgroundColor: '#fffde7', borderLeftWidth: 4, borderLeftColor: '#f9a825' },
@@ -455,19 +416,22 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#eee' },
   guardarBtn: { backgroundColor: '#2e7d32', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
- alertaBanner: { margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, borderLeftWidth: 4, elevation: 2 },
-alertaCompleta: { backgroundColor: '#e8f5e9', borderLeftColor: '#2e7d32' },
-alertaIncompleta: { backgroundColor: '#fff8e1', borderLeftColor: '#f9a825' },
-alertaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-alertaIcono: { fontSize: 20 },
-alertaTxt: { fontSize: 13, color: '#555' },
-alertaBold: { fontWeight: 'bold', color: '#f57f17' },
-alertaCerrar: { fontSize: 16, color: '#888', padding: 4 },
-cronometro: { alignItems: 'center' },
-cronometroLabel: { fontSize: 11, color: '#888', marginBottom: 8 },
-cronometroRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-cronometroItem: { backgroundColor: '#212529', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', minWidth: 50 },
-cronometroNum: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-cronometroSub: { color: 'rgba(255,255,255,0.6)', fontSize: 9, marginTop: 2 },
-cronometroDos: { color: '#333', fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+  alertaBanner: { margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, borderLeftWidth: 4, elevation: 2 },
+  alertaCompleta: { backgroundColor: '#e8f5e9', borderLeftColor: '#2e7d32' },
+  alertaIncompleta: { backgroundColor: '#fff8e1', borderLeftColor: '#f9a825' },
+  alertaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  alertaIcono: { fontSize: 20 },
+  alertaTxt: { fontSize: 13, color: '#555' },
+  alertaBold: { fontWeight: 'bold', color: '#f57f17' },
+  cronometro: { alignItems: 'center' },
+  cronometroLabel: { fontSize: 11, color: '#888', marginBottom: 8 },
+  cronometroRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cronometroItem: { backgroundColor: '#212529', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', minWidth: 50 },
+  cronometroNum: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  cronometroSub: { color: 'rgba(255,255,255,0.6)', fontSize: 9, marginTop: 2 },
+  cronometroDos: { color: '#333', fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+ filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
+  filtroBtnActivo: { backgroundColor: '#2e7d32' },
+  filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
+  filtroTxtActivo: { color: 'white' },
 });
