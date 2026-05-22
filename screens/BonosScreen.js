@@ -54,9 +54,19 @@ export default function BonosScreen({ recargar }) {
   const [guardando, setGuardando] = useState(false);
   const [userId, setUserId] = useState(null);
   const [fechaLimite, setFechaLimite] = useState(null);
+  const [bonosHabilitados, setBonosHabilitados] = useState(false);
+  const [tiempoRestante, setTiempoRestante] = useState(null);
 
   useEffect(() => { iniciar(); }, []);
   useEffect(() => { if (recargar > 0) iniciar(); }, [recargar]);
+  useEffect(() => {
+  if (!fechaLimite) return;
+  const timer = setInterval(() => {
+    setTiempoRestante(calcularTiempoRestante());
+  }, 1000);
+  setTiempoRestante(calcularTiempoRestante());
+  return () => clearInterval(timer);
+}, [fechaLimite]);
 
   async function iniciar() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -114,9 +124,15 @@ export default function BonosScreen({ recargar }) {
   }
 
   async function cargarFechaLimite() {
-    const { data } = await supabase.from('configuracion').select('valor').eq('clave', 'fecha_limite').single();
-    if (data) setFechaLimite(new Date(data.valor));
+  const { data } = await supabase.from('configuracion').select('*');
+  if (data) {
+    const map = {};
+    data.forEach(c => { map[c.clave] = c.valor; });
+    const limite = map['fecha_limite'];
+    if (limite) setFechaLimite(new Date(limite));
+    setBonosHabilitados(map['bonos_habilitados'] === 'true');
   }
+}
 
   async function cargarResultadosReales() {
     const { data } = await supabase.from('configuracion').select('*');
@@ -131,7 +147,7 @@ export default function BonosScreen({ recargar }) {
     }
   }
 
-  const habilitado = !fechaLimite || new Date() <= fechaLimite;
+  const habilitado = bonosHabilitados && (!fechaLimite || new Date() <= fechaLimite);
 
   function getColorBono(clave, valorPrediccion) {
     const real = resultadosReales[clave];
@@ -200,8 +216,72 @@ export default function BonosScreen({ recargar }) {
     <View style={styles.center}><ActivityIndicator size="large" color="#f57f17" /></View>
   );
 
+  function calcularProgresoBonus() {
+  const bonosRequeridos = ['campeon', 'subcampeon', 'tercer_lugar', 'cuarto_lugar', 'goleador', 'portero'];
+  const lideresRequeridos = GRUPOS.length;
+  const tercerosRequeridos = 8;
+  
+  const bonosLlenados = bonosRequeridos.filter(b => predicciones[b]).length;
+  const lideresLlenados = GRUPOS.filter(g => lideresGrupo[g]).length;
+  const tercerosLlenados = mejoresTerceros.length;
+  
+  const total = bonosRequeridos.length + lideresRequeridos + tercerosRequeridos;
+  const llenados = bonosLlenados + lideresLlenados + tercerosLlenados;
+  return { llenados, total, faltantes: total - llenados };
+}
+
+function calcularTiempoRestante() {
+  if (!fechaLimite) return null;
+  const diff = fechaLimite - new Date();
+  if (diff <= 0) return null;
+  return {
+    dias: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    horas: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+    minutos: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+    segundos: Math.floor((diff % (1000 * 60)) / 1000),
+  };
+}
+
   return (
     <ScrollView style={styles.container}>
+      {habilitado && (() => {
+  const { llenados, total, faltantes } = calcularProgresoBonus();
+  const completo = faltantes === 0;
+  return (
+    <View style={[styles.bonoBanner, completo ? styles.bonoBannerCompleto : styles.bonoBannerIncompleto]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: completo ? 0 : 8 }}>
+        <Text style={{ fontSize: 20 }}>{completo ? '✅' : '⚠️'}</Text>
+        <Text style={{ flex: 1, fontSize: 13, color: '#555' }}>
+          {completo
+            ? <Text><Text style={{ fontWeight: 'bold' }}>¡Listo! </Text>Has completado todos los bonos.</Text>
+            : <Text>Te faltan <Text style={{ fontWeight: 'bold', color: '#f57f17' }}>{faltantes} bonos</Text> por llenar de {total}</Text>
+          }
+        </Text>
+      </View>
+      {!completo && tiempoRestante && (
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>⏱️ Tiempo restante:</Text>
+          <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+            {[
+              { val: tiempoRestante.dias, label: 'días' },
+              { val: tiempoRestante.horas, label: 'hrs' },
+              { val: tiempoRestante.minutos, label: 'min' },
+              { val: tiempoRestante.segundos, label: 'seg' },
+            ].map((item, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ backgroundColor: '#212529', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignItems: 'center', minWidth: 44 }}>
+                  <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>{String(item.val).padStart(2,'0')}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 9 }}>{item.label}</Text>
+                </View>
+                {i < 3 && <Text style={{ color: '#333', fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>:</Text>}
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+})()}
       <View style={styles.alertContainer}>
         {!habilitado && <Text style={styles.alertTxt}>🔒 Plazo vencido</Text>}
       </View>
@@ -413,4 +493,7 @@ const styles = StyleSheet.create({
   footer: { margin: 12, marginTop: 16 },
   guardarBtn: { backgroundColor: '#f57f17', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
+  bonoBanner: { margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, borderLeftWidth: 4, elevation: 2 },
+bonoBannerCompleto: { backgroundColor: '#e8f5e9', borderLeftColor: '#2e7d32' },
+bonoBannerIncompleto: { backgroundColor: '#fff8e1', borderLeftColor: '#f9a825' },
 });

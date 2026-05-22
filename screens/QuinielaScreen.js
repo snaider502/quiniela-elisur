@@ -52,10 +52,30 @@ export default function QuinielaScreen({ recargar }) {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [tiempoRestante, setTiempoRestante] = useState(null);
+  const [mostrarAlerta, setMostrarAlerta] = useState(false);
 
  useEffect(() => {
   if (recargar > 0) iniciar();
 }, [recargar]);
+
+useEffect(() => {
+  const timer = setInterval(() => {
+    const tiempo = calcularTiempoRestante();
+    setTiempoRestante(tiempo);
+  }, 1000);
+  return () => clearInterval(timer);
+}, [configuracion]);
+
+useEffect(() => {
+  if (!loading && Object.keys(configuracion).length > 0) {
+    const { faltantes } = calcularProgreso();
+    const tiempo = calcularTiempoRestante();
+    if (tiempo && faltantes > 0) {
+      setMostrarAlerta(true);
+    }
+  }
+}, [loading]);
 
   async function iniciar() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +125,29 @@ export default function QuinielaScreen({ recargar }) {
       setConfiguracion(map);
     }
   }
+
+function calcularProgreso() {
+  const total = partidos.filter(p => esFaseVisible(p.grupo)).length;
+  const llenados = Object.keys(predicciones).filter(id => {
+    const pred = predicciones[id];
+    return pred?.local !== '' && pred?.visita !== '';
+  }).length;
+  return { llenados, total, faltantes: total - llenados };
+}
+
+function calcularTiempoRestante() {
+  const limite = configuracion['fecha_limite'];
+  if (!limite) return null;
+  const ahora = new Date();
+  const fechaLimite = new Date(limite);
+  const diff = fechaLimite - ahora;
+  if (diff <= 0) return null;
+  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const segundos = Math.floor((diff % (1000 * 60)) / 1000);
+  return { dias, horas, minutos, segundos, diff };
+}
 
   function estaHabilitado(partido) {
     if (resultados[partido.id]) return false;
@@ -214,6 +257,58 @@ export default function QuinielaScreen({ recargar }) {
         )}
       </View>
 
+{Object.keys(configuracion).length > 0 && (() => {
+  const { llenados, total, faltantes } = calcularProgreso();
+  const completo = faltantes === 0 && total > 0;
+  return (
+    <View style={[styles.alertaBanner, completo ? styles.alertaCompleta : styles.alertaIncompleta]}>
+      <View style={styles.alertaRow}>
+        <Text style={styles.alertaIcono}>{completo ? '✅' : '⚠️'}</Text>
+        <View style={{ flex: 1 }}>
+          {completo
+            ? <Text style={styles.alertaTxt}>
+                <Text style={styles.alertaBold}>¡Listo! </Text>
+                Has registrado todos los {total} marcadores.
+              </Text>
+            : <Text style={styles.alertaTxt}>
+                Te faltan <Text style={styles.alertaBold}>{faltantes} partidos</Text> por llenar de {total}
+              </Text>
+          }
+        </View>
+        <TouchableOpacity onPress={() => setMostrarAlerta(false)}>
+          <Text style={styles.alertaCerrar}>✕</Text>
+        </TouchableOpacity>
+      </View>
+      {!completo && tiempoRestante && (
+        <View style={styles.cronometro}>
+          <Text style={styles.cronometroLabel}>⏱️ Tiempo restante para llenar:</Text>
+          <View style={styles.cronometroRow}>
+            <View style={styles.cronometroItem}>
+              <Text style={styles.cronometroNum}>{tiempoRestante.dias}</Text>
+              <Text style={styles.cronometroSub}>días</Text>
+            </View>
+            <Text style={styles.cronometroDos}>:</Text>
+            <View style={styles.cronometroItem}>
+              <Text style={styles.cronometroNum}>{String(tiempoRestante.horas).padStart(2,'0')}</Text>
+              <Text style={styles.cronometroSub}>hrs</Text>
+            </View>
+            <Text style={styles.cronometroDos}>:</Text>
+            <View style={styles.cronometroItem}>
+              <Text style={styles.cronometroNum}>{String(tiempoRestante.minutos).padStart(2,'0')}</Text>
+              <Text style={styles.cronometroSub}>min</Text>
+            </View>
+            <Text style={styles.cronometroDos}>:</Text>
+            <View style={styles.cronometroItem}>
+              <Text style={styles.cronometroNum}>{String(tiempoRestante.segundos).padStart(2,'0')}</Text>
+              <Text style={styles.cronometroSub}>seg</Text>
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+})()}
+
       <FlatList
         data={partidosVisibles}
         keyExtractor={item => item.id.toString()}
@@ -306,6 +401,8 @@ export default function QuinielaScreen({ recargar }) {
         }}
       />
 
+
+
       {hayAlgoHabilitado && (
         <View style={styles.footer}>
           <TouchableOpacity style={styles.guardarBtn} onPress={guardarTodo} disabled={guardando}>
@@ -356,4 +453,19 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#eee' },
   guardarBtn: { backgroundColor: '#2e7d32', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
+ alertaBanner: { margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, borderLeftWidth: 4, elevation: 2 },
+alertaCompleta: { backgroundColor: '#e8f5e9', borderLeftColor: '#2e7d32' },
+alertaIncompleta: { backgroundColor: '#fff8e1', borderLeftColor: '#f9a825' },
+alertaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+alertaIcono: { fontSize: 20 },
+alertaTxt: { fontSize: 13, color: '#555' },
+alertaBold: { fontWeight: 'bold', color: '#f57f17' },
+alertaCerrar: { fontSize: 16, color: '#888', padding: 4 },
+cronometro: { alignItems: 'center' },
+cronometroLabel: { fontSize: 11, color: '#888', marginBottom: 8 },
+cronometroRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+cronometroItem: { backgroundColor: '#212529', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', minWidth: 50 },
+cronometroNum: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+cronometroSub: { color: 'rgba(255,255,255,0.6)', fontSize: 9, marginTop: 2 },
+cronometroDos: { color: '#333', fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
 });

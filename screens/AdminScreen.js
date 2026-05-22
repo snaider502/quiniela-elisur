@@ -15,16 +15,13 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
-  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa','suecia': 'se',
-'turquía': 'tr', 'turquia': 'tr',
-'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
-'bosnia y herzegovina': 'ba', 'bosnia': 'ba',
-'italia': 'it','r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
-'jamaica': 'jm',
-'irak': 'iq', 'iraq': 'iq',
-'bolivia': 'bo',
-'nueva caledonia': 'nc',
-'surinam': 'sr',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
+  'suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
+  'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
+  'bosnia y herzegovina': 'ba', 'bosnia': 'ba', 'italia': 'it',
+  'r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
+  'jamaica': 'jm', 'irak': 'iq', 'iraq': 'iq', 'bolivia': 'bo',
+  'nueva caledonia': 'nc', 'surinam': 'sr',
 };
 
 function getBandera(pais) {
@@ -38,6 +35,7 @@ export default function AdminScreen({ recargar }) {
   const [resultados, setResultados] = useState({});
   const [usuarios, setUsuarios] = useState([]);
   const [equipos, setEquipos] = useState([]);
+  const [equiposPorGrupo, setEquiposPorGrupo] = useState({});
   const [resultadosBonos, setResultadosBonos] = useState({});
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(null);
@@ -50,11 +48,9 @@ export default function AdminScreen({ recargar }) {
   const [equiposPendientes, setEquiposPendientes] = useState([]);
   const [equipoEditar, setEquipoEditar] = useState('');
   const [equipoNuevo, setEquipoNuevo] = useState('');
-  const [equiposPorGrupo, setEquiposPorGrupo] = useState({});
 
-  useEffect(() => {
-  if (recargar > 0) verificarAdmin();
-}, [recargar]);
+  useEffect(() => { verificarAdmin(); }, []);
+  useEffect(() => { if (recargar > 0) verificarAdmin(); }, [recargar]);
 
   async function verificarAdmin() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -95,37 +91,29 @@ export default function AdminScreen({ recargar }) {
   }
 
   async function cargarEquipos() {
-  const { data } = await supabase
-    .from('partidos')
-    .select('equipo_local, equipo_visita, grupo')
-    .in('grupo', ['A','B','C','D','E','F','G','H','I','J','K','L']);
-  if (data) {
-    const set = new Set();
-    const porGrupo = {};
-    ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(g => { porGrupo[g] = new Set(); });
-    data.forEach(p => {
-      set.add(p.equipo_local);
-      set.add(p.equipo_visita);
-      if (porGrupo[p.grupo]) {
-        porGrupo[p.grupo].add(p.equipo_local);
-        porGrupo[p.grupo].add(p.equipo_visita);
-      }
-    });
-    const porGrupoArray = {};
-    ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(g => {
-      porGrupoArray[g] = [...porGrupo[g]].sort();
-    });
-    setEquipos([...set].sort());
-    setEquiposPorGrupo(porGrupoArray);
+    const { data } = await supabase.from('partidos').select('equipo_local, equipo_visita, grupo').in('grupo', ['A','B','C','D','E','F','G','H','I','J','K','L']);
+    if (data) {
+      const set = new Set();
+      const porGrupo = {};
+      ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(g => { porGrupo[g] = new Set(); });
+      data.forEach(p => {
+        set.add(p.equipo_local); set.add(p.equipo_visita);
+        if (porGrupo[p.grupo]) { porGrupo[p.grupo].add(p.equipo_local); porGrupo[p.grupo].add(p.equipo_visita); }
+      });
+      const porGrupoArray = {};
+      ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(g => { porGrupoArray[g] = [...porGrupo[g]].sort(); });
+      setEquipos([...set].sort());
+      setEquiposPorGrupo(porGrupoArray);
+    }
+    const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
+    const pendientes = [];
+    for (const codigo of codigos) {
+      const { data: d } = await supabase.from('partidos').select('id').or(`equipo_local.eq.${codigo},equipo_visita.eq.${codigo}`).limit(1);
+      if (d && d.length > 0) pendientes.push(codigo);
+    }
+    setEquiposPendientes(pendientes);
   }
-  const codigos = ['A4', 'B2', 'D4', 'F3', 'I3', 'K2'];
-  const pendientes = [];
-  for (const codigo of codigos) {
-    const { data: d } = await supabase.from('partidos').select('id').or(`equipo_local.eq.${codigo},equipo_visita.eq.${codigo}`).limit(1);
-    if (d && d.length > 0) pendientes.push(codigo);
-  }
-  setEquiposPendientes(pendientes);
-}
+
   async function cargarResultadosBonos() {
     const { data } = await supabase.from('configuracion').select('*');
     if (data) {
@@ -143,14 +131,9 @@ export default function AdminScreen({ recargar }) {
     const res = resultados[partido.id];
     if (!res || res.local === '' || res.visita === '') { Alert.alert('Error', 'Ingresa ambos marcadores'); return; }
     setGuardando(partido.id);
-    const { error } = await supabase.from('resultados').upsert({
-      partido_id: partido.id,
-      goles_local: parseInt(res.local),
-      goles_visita: parseInt(res.visita),
-    }, { onConflict: 'partido_id' });
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
+    const { error } = await supabase.from('resultados').upsert({ partido_id: partido.id, goles_local: parseInt(res.local), goles_visita: parseInt(res.visita) }, { onConflict: 'partido_id' });
+    if (error) { Alert.alert('Error', error.message); }
+    else {
       await calcularPuntosPartido(partido);
       await guardarHistorialRanking();
       await enviarMensajeWhatsApp(`⚽ QUINIELA MUNDIAL 2026\n\nNuevo resultado:\n🏟️ ${partido.titulo}\n📊 ${res.local} - ${res.visita}\n\n¡Revisa tu posición en la app! 🏆`);
@@ -159,20 +142,14 @@ export default function AdminScreen({ recargar }) {
     setGuardando(null);
   }
 
- async function borrarResultado(partido) {
-  try {
-    await supabase.from('puntos').delete().eq('partido_id', partido.id);
-    await supabase.from('resultados').delete().eq('partido_id', partido.id);
-    setResultados(prev => {
-      const nuevo = { ...prev };
-      delete nuevo[partido.id];
-      return nuevo;
-    });
-    alert('✅ Resultado y puntos borrados correctamente');
-  } catch (e) {
-    alert('Error: ' + e.message);
+  async function borrarResultado(partido) {
+    try {
+      await supabase.from('puntos').delete().eq('partido_id', partido.id);
+      await supabase.from('resultados').delete().eq('partido_id', partido.id);
+      setResultados(prev => { const nuevo = { ...prev }; delete nuevo[partido.id]; return nuevo; });
+      alert('✅ Resultado y puntos borrados correctamente');
+    } catch (e) { alert('Error: ' + e.message); }
   }
-}
 
   async function calcularPuntosPartido(partido) {
     const res = resultados[partido.id];
@@ -181,9 +158,7 @@ export default function AdminScreen({ recargar }) {
     if (!preds || preds.length === 0) return;
     for (const pred of preds) {
       const { pts, tipo } = calcularPuntosPartidoUtil(parseInt(res.local), parseInt(res.visita), pred.goles_local, pred.goles_visita);
-      await supabase.from('puntos').upsert({
-        usuario_id: pred.usuario_id, partido_id: partido.id, puntos: pts, tipo_acierto: tipo,
-      }, { onConflict: 'usuario_id,partido_id' });
+      await supabase.from('puntos').upsert({ usuario_id: pred.usuario_id, partido_id: partido.id, puntos: pts, tipo_acierto: tipo }, { onConflict: 'usuario_id,partido_id' });
     }
   }
 
@@ -197,9 +172,7 @@ export default function AdminScreen({ recargar }) {
 
   async function enviarMensajeWhatsApp(mensaje) {
     try {
-      const phone = '50242451548';
-      const apikey = '6717176';
-      await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(mensaje)}&apikey=${apikey}`);
+      await fetch(`https://api.callmebot.com/whatsapp.php?phone=50242451548&text=${encodeURIComponent(mensaje)}&apikey=6717176`);
     } catch (e) { console.log('Error WhatsApp:', e); }
   }
 
@@ -215,19 +188,13 @@ export default function AdminScreen({ recargar }) {
     else { Alert.alert('✅ Listo', 'Usuario desactivado'); cargarDatos(); }
   }
 
-async function eliminarUsuario(usuario) {
-  try {
-    const { error } = await supabase.from('usuarios').delete().eq('id', usuario.id);
-    if (error) {
-      alert('Error: ' + error.message);
-    } else {
-      alert('✅ ' + usuario.nombre + ' eliminado correctamente');
-      cargarDatos();
-    }
-  } catch (e) {
-    alert('Error: ' + e.message);
+  async function eliminarUsuario(usuario) {
+    try {
+      const { error } = await supabase.from('usuarios').delete().eq('id', usuario.id);
+      if (error) alert('Error: ' + error.message);
+      else { alert('✅ ' + usuario.nombre + ' eliminado correctamente'); cargarDatos(); }
+    } catch (e) { alert('Error: ' + e.message); }
   }
-}
 
   async function guardarFechaLimite() {
     const { error } = await supabase.from('configuracion').update({ valor: nuevaFechaLimite }).eq('clave', 'fecha_limite');
@@ -244,39 +211,27 @@ async function eliminarUsuario(usuario) {
   }
 
   async function actualizarEquipo() {
-  if (!equipoEditar || !equipoNuevo) { Alert.alert('Error', 'Completa ambos campos'); return; }
-  const { error } = await supabase.rpc('actualizar_equipo', { codigo_viejo: equipoEditar, nombre_nuevo: equipoNuevo });
-  if (error) Alert.alert('Error', error.message);
-  else {
-    Alert.alert('✅ Listo', `${equipoEditar} actualizado a ${equipoNuevo}`);
-    setEquipoEditar(''); setEquipoNuevo('');
-    await cargarEquipos();
-    await cargarDatos();
+    if (!equipoEditar || !equipoNuevo) { Alert.alert('Error', 'Completa ambos campos'); return; }
+    const { error } = await supabase.rpc('actualizar_equipo', { codigo_viejo: equipoEditar, nombre_nuevo: equipoNuevo });
+    if (error) Alert.alert('Error', error.message);
+    else { Alert.alert('✅ Listo', `${equipoEditar} actualizado a ${equipoNuevo}`); setEquipoEditar(''); setEquipoNuevo(''); await cargarEquipos(); await cargarDatos(); }
   }
-}
 
   async function guardarResultadoBono(clave, valor) {
     const claveCompleta = `resultado_bono_${clave}`;
     const { error } = await supabase.from('configuracion').upsert({ clave: claveCompleta, valor }, { onConflict: 'clave' });
     if (error) Alert.alert('Error', error.message);
-    else {
-      setResultadosBonos(prev => ({ ...prev, [claveCompleta]: valor }));
-      await calcularPuntosBonos(clave, valor);
-      Alert.alert('✅ Listo', 'Resultado de bono guardado');
-    }
+    else { setResultadosBonos(prev => ({ ...prev, [claveCompleta]: valor })); await calcularPuntosBonos(clave, valor); Alert.alert('✅ Listo', 'Resultado de bono guardado'); }
   }
 
-async function borrarResultadoBono(clave) {
-  const claveCompleta = `resultado_bono_${clave}`;
-  await supabase.from('configuracion').delete().eq('clave', claveCompleta);
-  await supabase.from('puntos').delete().eq('tipo_acierto', `bono_${clave}`);
-  setResultadosBonos(prev => {
-    const nuevo = { ...prev };
-    delete nuevo[claveCompleta];
-    return nuevo;
-  });
-  alert('✅ Resultado de bono borrado');
-}
+  async function borrarResultadoBono(clave) {
+    const claveCompleta = `resultado_bono_${clave}`;
+    await supabase.from('configuracion').delete().eq('clave', claveCompleta);
+    await supabase.from('puntos').delete().eq('tipo_acierto', `bono_${clave}`);
+    setResultadosBonos(prev => { const nuevo = { ...prev }; delete nuevo[claveCompleta]; return nuevo; });
+    alert('✅ Resultado de bono borrado');
+  }
+
   async function calcularPuntosBonos(clave, valorReal) {
     const { data: preds } = await supabase.from('predicciones_bonos').select('*').eq('clave', clave);
     if (!preds || preds.length === 0) return;
@@ -284,9 +239,7 @@ async function borrarResultadoBono(clave) {
     const pts = clave.startsWith('lider_') ? 10 : (clave.startsWith('mejor_tercero') ? 5 : puntosMap[clave] || 0);
     for (const pred of preds) {
       if (pred.valor?.toLowerCase() !== valorReal?.toLowerCase()) continue;
-      await supabase.from('puntos').upsert({
-        usuario_id: pred.usuario_id, partido_id: null, puntos: pts, tipo_acierto: `bono_${clave}`,
-      }, { onConflict: 'usuario_id,tipo_acierto' });
+      await supabase.from('puntos').upsert({ usuario_id: pred.usuario_id, partido_id: null, puntos: pts, tipo_acierto: `bono_${clave}` }, { onConflict: 'usuario_id,tipo_acierto' });
     }
   }
 
@@ -354,16 +307,10 @@ async function borrarResultadoBono(clave) {
                   {guardando === item.id ? <ActivityIndicator color="white" size="small" /> : <Text style={styles.guardarTxt}>Guardar resultado</Text>}
                 </TouchableOpacity>
                 {tieneResultado && (
-                  <TouchableOpacity
-  style={styles.borrarBtn}
-  activeOpacity={0.7}
-  onPress={() => {
-    if (window.confirm(`¿Seguro que quieres borrar el resultado de ${item.equipo_local} vs ${item.equipo_visita}?`)) {
-      borrarResultado(item);
-    }
-  }}>
-  <Text style={styles.borrarTxt}>🗑️ Borrar resultado</Text>
-</TouchableOpacity>
+                  <TouchableOpacity style={styles.borrarBtn} activeOpacity={0.7}
+                    onPress={() => { if (window.confirm(`¿Borrar resultado de ${item.equipo_local} vs ${item.equipo_visita}?`)) borrarResultado(item); }}>
+                    <Text style={styles.borrarTxt}>🗑️ Borrar resultado</Text>
+                  </TouchableOpacity>
                 )}
               </View>
             );
@@ -389,20 +336,18 @@ async function borrarResultadoBono(clave) {
                 ? <TouchableOpacity style={styles.btnDesactivar} onPress={() => desactivarUsuario(item.id)}><Text style={styles.btnTxt}>Desactivar</Text></TouchableOpacity>
                 : <TouchableOpacity style={styles.btnActivar} onPress={() => activarUsuario(item.id)}><Text style={styles.btnTxt}>Activar</Text></TouchableOpacity>
               }
-              <TouchableOpacity
-  style={styles.btnEliminar}
-  onPress={() => {
-    if (typeof window !== 'undefined' && window.confirm) {
-      if (window.confirm(`¿Eliminar a ${item.nombre}? Esta acción no se puede deshacer.`)) eliminarUsuario(item);
-    } else {
-      Alert.alert('Eliminar', `¿Eliminar a ${item.nombre}? Esta acción no se puede deshacer.`, [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarUsuario(item) }
-      ]);
-    }
-  }}>
-  <Text style={styles.btnTxt}>🗑️</Text>
-</TouchableOpacity>
+              <TouchableOpacity style={styles.btnEliminar} onPress={() => {
+                if (typeof window !== 'undefined' && window.confirm) {
+                  if (window.confirm(`¿Eliminar a ${item.nombre}?`)) eliminarUsuario(item);
+                } else {
+                  Alert.alert('Eliminar', `¿Eliminar a ${item.nombre}?`, [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Eliminar', style: 'destructive', onPress: () => eliminarUsuario(item) }
+                  ]);
+                }
+              }}>
+                <Text style={styles.btnTxt}>🗑️</Text>
+              </TouchableOpacity>
             </View>
           )}
         />
@@ -436,196 +381,143 @@ async function borrarResultadoBono(clave) {
                 <View key={fase.clave} style={styles.faseRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.faseLabel}>{fase.label}</Text>
-                    <TextInput
-                      style={styles.faseFechaInput}
-                      value={nuevoConfigMap[fase.fechaClave] || fechaFase}
-                      onChangeText={v => setNuevoConfigMap(prev => ({ ...prev, [fase.fechaClave]: v }))}
-                      placeholder="YYYY-MM-DD HH:MM:SS"
-                      autoCapitalize="none"
-                    />
+                    <TextInput style={styles.faseFechaInput} value={nuevoConfigMap[fase.fechaClave] || fechaFase} onChangeText={v => setNuevoConfigMap(prev => ({ ...prev, [fase.fechaClave]: v }))} placeholder="YYYY-MM-DD HH:MM:SS" autoCapitalize="none" />
                   </View>
-                  <TouchableOpacity
-                    style={[styles.faseBtn, habilitada ? styles.faseBtnActivo : styles.faseBtnInactivo]}
-                    onPress={() => toggleFase(fase.clave, fase.fechaClave, !habilitada)}>
+                  <TouchableOpacity style={[styles.faseBtn, habilitada ? styles.faseBtnActivo : styles.faseBtnInactivo]} onPress={() => toggleFase(fase.clave, fase.fechaClave, !habilitada)}>
                     <Text style={styles.faseBtnTxt}>{habilitada ? '✅ ON' : '⛔ OFF'}</Text>
                   </TouchableOpacity>
                 </View>
               );
             })}
           </View>
+
+          <View style={[styles.configCard, { marginTop: 12, marginBottom: 30 }]}>
+            <Text style={styles.configTitle}>⭐ Bonos Extra</Text>
+            <View style={styles.faseRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.faseLabel}>Habilitar pestaña de Bonos</Text>
+                <Text style={{ fontSize: 11, color: '#888' }}>Los participantes podrán llenar sus predicciones de bonos</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.faseBtn, configMap['bonos_habilitados'] === 'true' ? styles.faseBtnActivo : styles.faseBtnInactivo]}
+                onPress={async () => {
+                  const nuevoValor = configMap['bonos_habilitados'] !== 'true';
+                  await supabase.from('configuracion').update({ valor: nuevoValor.toString() }).eq('clave', 'bonos_habilitados');
+                  await cargarConfigFases();
+                  Alert.alert('✅ Listo', `Bonos ${nuevoValor ? 'habilitados' : 'deshabilitados'}`);
+                }}>
+                <Text style={styles.faseBtnTxt}>{configMap['bonos_habilitados'] === 'true' ? '✅ ON' : '⛔ OFF'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </ScrollView>
       )}
 
       {tab === 'equipos' && (
-  <ScrollView style={{ padding: 16 }}>
-    <View style={styles.configCard}>
-      <Text style={styles.configTitle}>🌍 Actualizar Equipos</Text>
-      <Text style={styles.configDesc}>
-        Busca el nombre actual del equipo y escribe el nombre correcto. Útil para playoffs y fase eliminatoria.
-      </Text>
+        <ScrollView style={{ padding: 16 }}>
+          <View style={styles.configCard}>
+            <Text style={styles.configTitle}>🌍 Actualizar Equipos</Text>
+            <Text style={styles.configDesc}>Busca el nombre actual del equipo y escribe el nombre correcto.</Text>
+            <TextInput style={styles.configInput} value={equipoEditar} onChangeText={setEquipoEditar} placeholder="Nombre actual (ej: 1A, Ganador P73, A4...)" autoCapitalize="none" />
+            <TextInput style={styles.configInput} value={equipoNuevo} onChangeText={setEquipoNuevo} placeholder="Nombre nuevo (ej: Argentina, España...)" autoCapitalize="words" />
+            <TouchableOpacity style={styles.configBtn} onPress={actualizarEquipo}>
+              <Text style={styles.guardarTxt}>💾 Actualizar Equipo</Text>
+            </TouchableOpacity>
+          </View>
 
-      <TextInput
-        style={styles.configInput}
-        value={equipoEditar}
-        onChangeText={setEquipoEditar}
-        placeholder="Nombre actual (ej: 1A, Ganador P73, A4...)"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.configInput}
-        value={equipoNuevo}
-        onChangeText={setEquipoNuevo}
-        placeholder="Nombre nuevo (ej: Argentina, España...)"
-        autoCapitalize="words"
-      />
+          <View style={[styles.configCard, { marginTop: 12 }]}>
+            <Text style={styles.configTitle}>⏳ Equipos Pendientes</Text>
+            {equiposPendientes.length === 0 && <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>✅ Todos confirmados</Text>}
+            {equiposPendientes.map(codigo => (
+              <TouchableOpacity key={codigo} style={styles.equipoPendienteRow} onPress={() => setEquipoEditar(codigo)}>
+                <View style={styles.equipoCodigo}>
+                  <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
+                  <Text style={styles.equipoPendienteTxt}>Toca para editar</Text>
+                </View>
+                <Text style={{ fontSize: 18 }}>→</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      <TouchableOpacity style={styles.configBtn} onPress={actualizarEquipo}>
-        <Text style={styles.guardarTxt}>💾 Actualizar Equipo</Text>
-      </TouchableOpacity>
-    </View>
-
-    <View style={[styles.configCard, { marginTop: 12 }]}>
-      <Text style={styles.configTitle}>⏳ Equipos Pendientes de Clasificar</Text>
-      {equiposPendientes.length === 0 && (
-        <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>
-          ✅ Todos los equipos confirmados
-        </Text>
+          <View style={[styles.configCard, { marginTop: 12, marginBottom: 30 }]}>
+            <Text style={styles.configTitle}>🏆 Fase Eliminatoria</Text>
+            <Text style={styles.configDesc}>Toca un equipo para pre-llenar el campo de arriba.</Text>
+            {partidos
+              .filter(p => !['A','B','C','D','E','F','G','H','I','J','K','L'].includes(p.grupo))
+              .filter(p => p.equipo_local.startsWith('1') || p.equipo_local.startsWith('2') || p.equipo_local.startsWith('3') || p.equipo_local.startsWith('Ganador') || p.equipo_local.startsWith('Perdedor') || p.equipo_visita.startsWith('1') || p.equipo_visita.startsWith('2') || p.equipo_visita.startsWith('3') || p.equipo_visita.startsWith('Ganador') || p.equipo_visita.startsWith('Perdedor'))
+              .map(p => (
+                <View key={p.id} style={styles.equipoPendienteRow}>
+                  <View style={styles.equipoCodigo}>
+                    <Text style={styles.equipoCodigoTxt}>#{p.numero} {p.grupo}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                      <TouchableOpacity style={styles.equipoEditarBtn} onPress={() => setEquipoEditar(p.equipo_local)}>
+                        <Text style={styles.guardarTxt}>{p.equipo_local}</Text>
+                      </TouchableOpacity>
+                      <Text style={{ alignSelf: 'center', color: '#888' }}>vs</Text>
+                      <TouchableOpacity style={styles.equipoEditarBtn} onPress={() => setEquipoEditar(p.equipo_visita)}>
+                        <Text style={styles.guardarTxt}>{p.equipo_visita}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))
+            }
+          </View>
+        </ScrollView>
       )}
-      {equiposPendientes.map(codigo => (
-        <TouchableOpacity
-          key={codigo}
-          style={styles.equipoPendienteRow}
-          onPress={() => setEquipoEditar(codigo)}>
-          <View style={styles.equipoCodigo}>
-            <Text style={styles.equipoCodigoTxt}>{codigo}</Text>
-            <Text style={styles.equipoPendienteTxt}>Toca para editar</Text>
-          </View>
-          <Text style={{ fontSize: 18 }}>→</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-
-    <View style={[styles.configCard, { marginTop: 12, marginBottom: 30 }]}>
-      <Text style={styles.configTitle}>🏆 Fase Eliminatoria</Text>
-      <Text style={styles.configDesc}>
-        Equipos pendientes en fase eliminatoria. Toca uno para pre-llenar el campo de arriba.
-      </Text>
-      {partidos
-        .filter(p => !['A','B','C','D','E','F','G','H','I','J','K','L'].includes(p.grupo))
-        .filter(p => 
-          p.equipo_local.startsWith('1') || 
-          p.equipo_local.startsWith('2') || 
-          p.equipo_local.startsWith('3') ||
-          p.equipo_local.startsWith('Ganador') ||
-          p.equipo_local.startsWith('Perdedor') ||
-          p.equipo_visita.startsWith('1') ||
-          p.equipo_visita.startsWith('2') ||
-          p.equipo_visita.startsWith('3') ||
-          p.equipo_visita.startsWith('Ganador') ||
-          p.equipo_visita.startsWith('Perdedor')
-        )
-        .map(p => (
-          <View key={p.id} style={styles.equipoPendienteRow}>
-            <View style={styles.equipoCodigo}>
-              <Text style={styles.equipoCodigoTxt}>#{p.numero} {p.grupo}</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                <TouchableOpacity
-                  style={styles.equipoEditarBtn}
-                  onPress={() => setEquipoEditar(p.equipo_local)}>
-                  <Text style={styles.guardarTxt}>{p.equipo_local}</Text>
-                </TouchableOpacity>
-                <Text style={{ alignSelf: 'center', color: '#888' }}>vs</Text>
-                <TouchableOpacity
-                  style={styles.equipoEditarBtn}
-                  onPress={() => setEquipoEditar(p.equipo_visita)}>
-                  <Text style={styles.guardarTxt}>{p.equipo_visita}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        ))
-      }
-    </View>
-  </ScrollView>
-)}
 
       {tab === 'bonos' && (
         <ScrollView style={{ padding: 16 }}>
           {[
-  { clave: 'campeon', label: 'Campeón del Mundo', icon: '🏆' },
-  { clave: 'subcampeon', label: 'Subcampeón', icon: '🥈' },
-  { clave: 'tercer_lugar', label: '3er Lugar', icon: '🥉' },
-  { clave: 'cuarto_lugar', label: '4to Lugar', icon: '4️⃣' },
-  { clave: 'goleador', label: 'Selección Goleadora', icon: '⚽' },
-  { clave: 'portero', label: 'Portero Menos Vencido', icon: '🧤' },
-].map(bono => (
-  <View key={bono.clave} style={styles.bonoCard}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-      <Text style={styles.bonoTitulo}>{bono.icon} {bono.label}</Text>
-      {resultadosBonos[`resultado_bono_${bono.clave}`] && (
-        <TouchableOpacity
-          style={styles.borrarBtn}
-          onPress={() => {
-            if (typeof window !== 'undefined' && window.confirm) {
-              if (window.confirm(`¿Borrar resultado de ${bono.label}?`)) borrarResultadoBono(bono.clave);
-            } else {
-              Alert.alert('Borrar', `¿Borrar resultado de ${bono.label}?`, [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Borrar', style: 'destructive', onPress: () => borrarResultadoBono(bono.clave) }
-              ]);
-            }
-          }}>
-          <Text style={styles.borrarTxt}>🗑️ Borrar</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-    {resultadosBonos[`resultado_bono_${bono.clave}`] && (
-      <Text style={styles.bonoActual}>Actual: {resultadosBonos[`resultado_bono_${bono.clave}`]}</Text>
-    )}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-      {equipos.map(equipo => (
-        <TouchableOpacity
-          key={equipo}
-          style={[styles.bonoEquipoBtn, resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnActivo]}
-          onPress={() => guardarResultadoBono(bono.clave, equipo)}>
-          {BANDERAS[equipo.toLowerCase()] && (
-            <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={styles.bandera} />
-          )}
-          <Text style={[styles.bonoEquipoBtnTxt, resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </View>
-))}
+            { clave: 'campeon', label: 'Campeón del Mundo', icon: '🏆' },
+            { clave: 'subcampeon', label: 'Subcampeón', icon: '🥈' },
+            { clave: 'tercer_lugar', label: '3er Lugar', icon: '🥉' },
+            { clave: 'cuarto_lugar', label: '4to Lugar', icon: '4️⃣' },
+            { clave: 'goleador', label: 'Selección Goleadora', icon: '⚽' },
+            { clave: 'portero', label: 'Portero Menos Vencido', icon: '🧤' },
+          ].map(bono => (
+            <View key={bono.clave} style={styles.bonoCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={styles.bonoTitulo}>{bono.icon} {bono.label}</Text>
+                {resultadosBonos[`resultado_bono_${bono.clave}`] && (
+                  <TouchableOpacity style={styles.borrarBtn} onPress={() => { if (window.confirm(`¿Borrar resultado de ${bono.label}?`)) borrarResultadoBono(bono.clave); }}>
+                    <Text style={styles.borrarTxt}>🗑️ Borrar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {resultadosBonos[`resultado_bono_${bono.clave}`] && <Text style={styles.bonoActual}>Actual: {resultadosBonos[`resultado_bono_${bono.clave}`]}</Text>}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {equipos.map(equipo => (
+                  <TouchableOpacity key={equipo} style={[styles.bonoEquipoBtn, resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnActivo]} onPress={() => guardarResultadoBono(bono.clave, equipo)}>
+                    {BANDERAS[equipo.toLowerCase()] && <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={styles.bandera} />}
+                    <Text style={[styles.bonoEquipoBtnTxt, resultadosBonos[`resultado_bono_${bono.clave}`] === equipo && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ))}
 
           <View style={[styles.bonoCard, { marginTop: 8 }]}>
-  <Text style={styles.bonoTitulo}>🥇 Líderes de Grupo</Text>
-  {['A','B','C','D','E','F','G','H','I','J','K','L'].map(grupo => (
-    <View key={grupo} style={styles.grupoBonoRow}>
-      <Text style={styles.grupoBonoLabel}>Grupo {grupo}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-        {(equiposPorGrupo[grupo] || []).map(equipo => (
-          <TouchableOpacity
-            key={equipo}
-            style={[styles.bonoEquipoBtnSmall, resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnActivo]}
-            onPress={() => guardarResultadoBono(`lider_${grupo}`, equipo)}>
-            {BANDERAS[equipo.toLowerCase()] && (
-              <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={{ width: 14, height: 10, borderRadius: 2 }} />
-            )}
-            <Text style={[styles.bonoEquipoBtnSmallTxt, resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
-          </TouchableOpacity>
-        ))}
-        {resultadosBonos[`resultado_bono_lider_${grupo}`] && (
-          <TouchableOpacity
-            style={[styles.bonoEquipoBtnSmall, { backgroundColor: '#ffebee' }]}
-            onPress={() => borrarResultadoBono(`lider_${grupo}`)}>
-            <Text style={{ fontSize: 10, color: '#c62828', fontWeight: 'bold' }}>🗑️</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-    </View>
-  ))}
-</View>
+            <Text style={styles.bonoTitulo}>🥇 Líderes de Grupo</Text>
+            {['A','B','C','D','E','F','G','H','I','J','K','L'].map(grupo => (
+              <View key={grupo} style={styles.grupoBonoRow}>
+                <Text style={styles.grupoBonoLabel}>Grupo {grupo}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                  {(equiposPorGrupo[grupo] || []).map(equipo => (
+                    <TouchableOpacity key={equipo} style={[styles.bonoEquipoBtnSmall, resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnActivo]} onPress={() => guardarResultadoBono(`lider_${grupo}`, equipo)}>
+                      {BANDERAS[equipo.toLowerCase()] && <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
+                      <Text style={[styles.bonoEquipoBtnSmallTxt, resultadosBonos[`resultado_bono_lider_${grupo}`] === equipo && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  {resultadosBonos[`resultado_bono_lider_${grupo}`] && (
+                    <TouchableOpacity style={[styles.bonoEquipoBtnSmall, { backgroundColor: '#ffebee' }]} onPress={() => borrarResultadoBono(`lider_${grupo}`)}>
+                      <Text style={{ fontSize: 10, color: '#c62828', fontWeight: 'bold' }}>🗑️</Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+              </View>
+            ))}
+          </View>
 
           <View style={[styles.bonoCard, { marginTop: 8, marginBottom: 30 }]}>
             <Text style={styles.bonoTitulo}>3️⃣ Mejores Terceros (selecciona 8)</Text>
@@ -634,18 +526,14 @@ async function borrarResultadoBono(clave) {
               {equipos.map(equipo => {
                 const yaSeleccionado = Object.keys(resultadosBonos).some(k => k.startsWith('resultado_bono_mejor_tercero') && resultadosBonos[k] === equipo);
                 return (
-                  <TouchableOpacity
-                    key={equipo}
-                    style={[styles.bonoEquipoBtnGrid, yaSeleccionado && styles.bonoEquipoBtnActivo]}
+                  <TouchableOpacity key={equipo} style={[styles.bonoEquipoBtnGrid, yaSeleccionado && styles.bonoEquipoBtnActivo]}
                     onPress={() => {
                       if (yaSeleccionado) return;
                       const count = Object.keys(resultadosBonos).filter(k => k.startsWith('resultado_bono_mejor_tercero')).length;
                       if (count >= 8) { Alert.alert('Máximo 8', 'Ya seleccionaste los 8 mejores terceros'); return; }
                       guardarResultadoBono(`mejor_tercero_${count + 1}`, equipo);
                     }}>
-                    {BANDERAS[equipo.toLowerCase()] && (
-                      <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={styles.bandera} />
-                    )}
+                    {BANDERAS[equipo.toLowerCase()] && <Image source={{ uri: `https://flagcdn.com/h20/${BANDERAS[equipo.toLowerCase()]}.png` }} style={styles.bandera} />}
                     <Text style={[styles.bonoEquipoBtnTxt, yaSeleccionado && styles.bonoEquipoBtnTxtActivo]} numberOfLines={1}>{equipo}</Text>
                   </TouchableOpacity>
                 );
@@ -695,6 +583,7 @@ const styles = StyleSheet.create({
   btnActivar: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   btnDesactivar: { backgroundColor: '#c62828', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   btnTxt: { color: 'white', fontSize: 12, fontWeight: 'bold' },
+  btnEliminar: { backgroundColor: '#333', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   configCard: { backgroundColor: 'white', borderRadius: 12, padding: 16, elevation: 2 },
   configTitle: { fontSize: 15, fontWeight: 'bold', color: '#1a237e', marginBottom: 8 },
   configDesc: { fontSize: 12, color: '#666', marginBottom: 12, lineHeight: 18 },
@@ -714,7 +603,6 @@ const styles = StyleSheet.create({
   equipoCodigoTxt: { fontSize: 15, fontWeight: 'bold', color: '#333' },
   equipoPendienteTxt: { fontSize: 11, color: '#f9a825' },
   equipoEditarBtn: { backgroundColor: '#1a237e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  equipoFormCard: { backgroundColor: '#f0f2f5', borderRadius: 10, padding: 14, marginTop: 14 },
   bonoCard: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
   bonoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#1a237e', marginBottom: 4 },
   bonoActual: { fontSize: 12, color: '#2e7d32', fontWeight: 'bold' },
@@ -727,5 +615,4 @@ const styles = StyleSheet.create({
   bonoEquipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
   grupoBonoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   grupoBonoLabel: { fontSize: 12, fontWeight: 'bold', color: '#1a237e', width: 60 },
-  btnEliminar: { backgroundColor: '#333', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
 });
