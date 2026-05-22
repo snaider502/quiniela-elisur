@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { supabase } from '../lib/supabase';
-
-const GRUPOS = ['TODOS', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'R16', 'R8', 'R4', 'SEMI', 'FINAL'];
-
-const FASES = ['Fase eliminatoria 16', 'Fase eliminatoria 8', 'Fase eliminatoria 4', 'SEMI-FINAL', 'TERCER LUGAR', 'FINAL'];
 
 const BANDERAS = {
   'méxico': 'mx', 'sudáfrica': 'za', 'corea del sur': 'kr',
@@ -18,17 +14,17 @@ const BANDERAS = {
   'bélgica': 'be', 'austria': 'at', 'ecuador': 'ec', 'curazao': 'cw',
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
-  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa','suecia': 'se',
-'turquía': 'tr', 'turquia': 'tr',
-'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
-'bosnia y herzegovina': 'ba', 'bosnia': 'ba',
-'italia': 'it','r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
-'jamaica': 'jm',
-'irak': 'iq', 'iraq': 'iq',
-'bolivia': 'bo',
-'nueva caledonia': 'nc',
-'surinam': 'sr',
+  'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
+  'suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
+  'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
+  'bosnia y herzegovina': 'ba', 'bosnia': 'ba', 'italia': 'it',
+  'r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
+  'jamaica': 'jm', 'irak': 'iq', 'iraq': 'iq', 'bolivia': 'bo',
+  'nueva caledonia': 'nc', 'surinam': 'sr',
 };
+
+const GRUPOS = ['TODOS', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'R16', 'R8', 'R4', 'SEMI', 'FINAL'];
+const FASES = ['Fase eliminatoria 16', 'Fase eliminatoria 8', 'Fase eliminatoria 4', 'SEMI-FINAL', 'TERCER LUGAR', 'FINAL'];
 
 function getBandera(pais) {
   if (!pais) return null;
@@ -38,11 +34,8 @@ function getBandera(pais) {
 
 function mapearGrupo(filtro) {
   const mapa = {
-    'R16': 'Fase eliminatoria 16',
-    'R8': 'Fase eliminatoria 8',
-    'R4': 'Fase eliminatoria 4',
-    'SEMI': 'SEMI-FINAL',
-    'FINAL': 'FINAL',
+    'R16': 'Fase eliminatoria 16', 'R8': 'Fase eliminatoria 8',
+    'R4': 'Fase eliminatoria 4', 'SEMI': 'SEMI-FINAL', 'FINAL': 'FINAL',
   };
   return mapa[filtro] || filtro;
 }
@@ -56,8 +49,7 @@ function calcularTablaGrupo(partidos, resultados) {
     if (!equipos[local]) equipos[local] = { nombre: local, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
     if (!equipos[visita]) equipos[visita] = { nombre: visita, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
     if (res) {
-      const gl = res.goles_local;
-      const gv = res.goles_visita;
+      const gl = res.goles_local, gv = res.goles_visita;
       equipos[local].pj++; equipos[visita].pj++;
       equipos[local].gf += gl; equipos[local].gc += gv;
       equipos[visita].gf += gv; equipos[visita].gc += gl;
@@ -68,7 +60,7 @@ function calcularTablaGrupo(partidos, resultados) {
   });
   return Object.values(equipos).sort((a, b) => {
     if (b.pts !== a.pts) return b.pts - a.pts;
-    const difB = b.gf - b.gc; const difA = a.gf - a.gc;
+    const difB = b.gf - b.gc, difA = a.gf - a.gc;
     if (difB !== difA) return difB - difA;
     return b.gf - a.gf;
   });
@@ -79,10 +71,18 @@ export default function PartidosScreen({ recargar }) {
   const [resultadosMap, setResultadosMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [grupoActivo, setGrupoActivo] = useState('TODOS');
+  const [partidosVivo, setPartidosVivo] = useState([]);
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
-  if (recargar > 0) cargarPartidos();
-}, [recargar]);
+    cargarPartidos();
+    cargarPartidosEnVivo();
+    const timerVivo = setInterval(cargarPartidosEnVivo, 60000);
+    const timerCuenta = setInterval(() => forceUpdate(n => n + 1), 60000);
+    return () => { clearInterval(timerVivo); clearInterval(timerCuenta); };
+  }, []);
+
+  useEffect(() => { if (recargar > 0) cargarPartidos(); }, [recargar]);
 
   async function cargarPartidos() {
     const [p, r] = await Promise.all([
@@ -98,13 +98,25 @@ export default function PartidosScreen({ recargar }) {
     setLoading(false);
   }
 
-  const grupoReal = mapearGrupo(grupoActivo);
-  const partidosFiltrados = grupoActivo === 'TODOS'
-    ? partidos
-    : partidos.filter(p => p.grupo === grupoReal);
+  async function cargarPartidosEnVivo() {
+    try {
+      const response = await fetch('https://v3.football.api-sports.io/fixtures?live=all&league=1&season=2026', {
+        headers: { 'x-apisports-key': '6ee57b2b6714d69da8dfb1600d633ed3' }
+      });
+      const data = await response.json();
+      if (data.response) setPartidosVivo(data.response);
+    } catch (e) { console.log('Error live:', e); }
+  }
 
+  const grupoReal = mapearGrupo(grupoActivo);
+  const partidosFiltrados = grupoActivo === 'TODOS' ? partidos : partidos.filter(p => p.grupo === grupoReal);
   const esGrupoSimple = grupoActivo !== 'TODOS' && !FASES.includes(grupoReal);
   const tablaGrupo = esGrupoSimple ? calcularTablaGrupo(partidosFiltrados, resultadosMap) : [];
+
+  const ahora = new Date();
+  const inicioMundial = new Date('2026-06-11T13:00:00');
+  const diff = inicioMundial - ahora;
+  const mundialIniciado = diff <= 0;
 
   function formatearFecha(fecha) {
     if (!fecha) return '';
@@ -115,24 +127,88 @@ export default function PartidosScreen({ recargar }) {
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
 
+  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>⚽ Partidos Mundial 2026</Text>
-      </View>
 
-      <View style={styles.filtrosContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtrosContent}>
-          {GRUPOS.map(g => (
-            <TouchableOpacity
-              key={g}
-              style={[styles.filtroBtn, grupoActivo === g && styles.filtroBtnActivo]}
-              onPress={() => setGrupoActivo(g)}>
-              <Text style={[styles.filtroTxt, grupoActivo === g && styles.filtroTxtActivo]}>{g}</Text>
-            </TouchableOpacity>
+      {!mundialIniciado && (
+        <View style={styles.cuentaContainer}>
+          <Text style={styles.cuentaTitulo}>🏆 FIFA World Cup 2026</Text>
+          <Text style={styles.cuentaSub}>El torneo más grande de la historia comienza en:</Text>
+          <View style={styles.cuentaRow}>
+            <View style={styles.cuentaItem}>
+              <Text style={styles.cuentaNum}>{dias}</Text>
+              <Text style={styles.cuentaLabel}>días</Text>
+            </View>
+            <Text style={styles.cuentaDos}>:</Text>
+            <View style={styles.cuentaItem}>
+              <Text style={styles.cuentaNum}>{String(horas).padStart(2,'0')}</Text>
+              <Text style={styles.cuentaLabel}>hrs</Text>
+            </View>
+            <Text style={styles.cuentaDos}>:</Text>
+            <View style={styles.cuentaItem}>
+              <Text style={styles.cuentaNum}>{String(minutos).padStart(2,'0')}</Text>
+              <Text style={styles.cuentaLabel}>min</Text>
+            </View>
+          </View>
+          <Text style={styles.cuentaFecha}>11 Jun 2026 · México vs Sudáfrica · Estadio Azteca</Text>
+          <View style={styles.cuentaStats}>
+            <View style={styles.cuentaStat}>
+              <Text style={styles.cuentaStatNum}>48</Text>
+              <Text style={styles.cuentaStatLabel}>Selecciones</Text>
+            </View>
+            <View style={styles.cuentaStat}>
+              <Text style={styles.cuentaStatNum}>104</Text>
+              <Text style={styles.cuentaStatLabel}>Partidos</Text>
+            </View>
+            <View style={styles.cuentaStat}>
+              <Text style={styles.cuentaStatNum}>16</Text>
+              <Text style={styles.cuentaStatLabel}>Estadios</Text>
+            </View>
+            <View style={styles.cuentaStat}>
+              <Text style={styles.cuentaStatNum}>3</Text>
+              <Text style={styles.cuentaStatLabel}>Países</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {mundialIniciado && partidosVivo.length > 0 && (
+        <View style={styles.vivoContainer}>
+          <Text style={styles.vivoTitle}>🔴 EN VIVO AHORA</Text>
+          {partidosVivo.map(p => (
+            <View key={p.fixture.id} style={styles.vivoCard}>
+              <View style={styles.vivoTeams}>
+                <Text style={styles.vivoTeam} numberOfLines={1}>{p.teams.home.name}</Text>
+                <View style={styles.vivoScore}>
+                  <Text style={styles.vivoScoreTxt}>{p.goals.home ?? 0} - {p.goals.away ?? 0}</Text>
+                  <Text style={styles.vivoMinuto}>{p.fixture.status.elapsed}'</Text>
+                </View>
+                <Text style={[styles.vivoTeam, { textAlign: 'right' }]} numberOfLines={1}>{p.teams.away.name}</Text>
+              </View>
+            </View>
           ))}
-        </ScrollView>
-      </View>
+        </View>
+      )}
+
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={GRUPOS}
+        keyExtractor={g => g}
+        style={styles.filtrosContainer}
+        contentContainerStyle={styles.filtrosContent}
+        renderItem={({ item: g }) => (
+          <TouchableOpacity
+            style={[styles.filtroBtn, grupoActivo === g && styles.filtroBtnActivo]}
+            onPress={() => setGrupoActivo(g)}>
+            <Text style={[styles.filtroTxt, grupoActivo === g && styles.filtroTxtActivo]}>{g}</Text>
+          </TouchableOpacity>
+        )}
+      />
 
       <FlatList
         data={partidosFiltrados}
@@ -155,9 +231,7 @@ export default function PartidosScreen({ recargar }) {
               <View key={equipo.nombre} style={[styles.tablaFila, i % 2 === 0 && styles.tablaFilaPar, i < 2 && styles.tablaFilaClasifica]}>
                 <View style={[styles.equipoCell, { flex: 2 }]}>
                   <Text style={styles.tablaPosNum}>{i + 1}</Text>
-                  {getBandera(equipo.nombre) && (
-                    <Image source={{ uri: getBandera(equipo.nombre) }} style={styles.tablaBandera} />
-                  )}
+                  {getBandera(equipo.nombre) && <Image source={{ uri: getBandera(equipo.nombre) }} style={styles.tablaBandera} />}
                   <Text style={styles.tablaEquipoNombre} numberOfLines={1}>{equipo.nombre}</Text>
                 </View>
                 <Text style={styles.tablaCol}>{equipo.pj}</Text>
@@ -183,9 +257,7 @@ export default function PartidosScreen({ recargar }) {
             </View>
             <View style={styles.cardMid}>
               <View style={styles.equipoContainer}>
-                {getBandera(item.equipo_local) && (
-                  <Image source={{ uri: getBandera(item.equipo_local) }} style={styles.bandera} />
-                )}
+                {getBandera(item.equipo_local) && <Image source={{ uri: getBandera(item.equipo_local) }} style={styles.bandera} />}
                 <Text style={styles.equipo} numberOfLines={1}>{item.equipo_local}</Text>
               </View>
               <View style={[styles.scoreBox, item.resultado && styles.scoreBoxActivo]}>
@@ -194,12 +266,8 @@ export default function PartidosScreen({ recargar }) {
                 </Text>
               </View>
               <View style={[styles.equipoContainer, { flexDirection: 'row-reverse' }]}>
-                {getBandera(item.equipo_visita) && (
-                  <Image source={{ uri: getBandera(item.equipo_visita) }} style={styles.bandera} />
-                )}
-                <Text style={[styles.equipo, { textAlign: 'right' }]} numberOfLines={1}>
-                  {item.equipo_visita}
-                </Text>
+                {getBandera(item.equipo_visita) && <Image source={{ uri: getBandera(item.equipo_visita) }} style={styles.bandera} />}
+                <Text style={[styles.equipo, { textAlign: 'right' }]} numberOfLines={1}>{item.equipo_visita}</Text>
               </View>
             </View>
             <Text style={styles.estadio}>{item.estadio}</Text>
@@ -213,11 +281,30 @@ export default function PartidosScreen({ recargar }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
-  headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  cuentaContainer: { backgroundColor: '#0a0d2c', margin: 12, marginBottom: 0, borderRadius: 12, padding: 16, alignItems: 'center' },
+  cuentaTitulo: { color: 'white', fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  cuentaSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 12, textAlign: 'center' },
+  cuentaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  cuentaItem: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center', minWidth: 60 },
+  cuentaNum: { color: 'white', fontSize: 28, fontWeight: 'bold' },
+  cuentaLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, marginTop: 2 },
+  cuentaDos: { color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
+  cuentaFecha: { color: 'rgba(255,255,255,0.8)', fontSize: 11, textAlign: 'center', marginBottom: 12 },
+  cuentaStats: { flexDirection: 'row', gap: 16 },
+  cuentaStat: { alignItems: 'center' },
+  cuentaStatNum: { color: '#f9a825', fontSize: 18, fontWeight: 'bold' },
+  cuentaStatLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 9 },
+  vivoContainer: { backgroundColor: '#fff5f5', margin: 12, marginBottom: 0, borderRadius: 12, padding: 12, borderLeftWidth: 4, borderLeftColor: '#c62828' },
+  vivoTitle: { fontSize: 12, fontWeight: 'bold', color: '#c62828', marginBottom: 8, letterSpacing: 0.5 },
+  vivoCard: { backgroundColor: 'white', borderRadius: 8, padding: 10, marginBottom: 6, elevation: 1 },
+  vivoTeams: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  vivoTeam: { flex: 1, fontSize: 12, fontWeight: 'bold', color: '#333' },
+  vivoScore: { alignItems: 'center', paddingHorizontal: 12 },
+  vivoScoreTxt: { fontSize: 16, fontWeight: 'bold', color: '#c62828' },
+  vivoMinuto: { fontSize: 10, color: '#888' },
   filtrosContainer: { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  filtrosContent: { paddingHorizontal: 8, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' },
-  filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4, height: 36, justifyContent: 'center' },
+  filtrosContent: { paddingHorizontal: 8, paddingVertical: 10 },
+  filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
   filtroBtnActivo: { backgroundColor: '#2e7d32' },
   filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   filtroTxtActivo: { color: 'white' },
