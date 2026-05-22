@@ -167,11 +167,13 @@ function calcularTiempoRestante() {
   }
 
   function esFaseVisible(grupo) {
-    if (GRUPOS_VALIDOS.includes(grupo)) return true;
-    const fase = FASES_MAP[grupo];
-    if (!fase) return false;
-    return configuracion[fase.hab] === 'true';
+  if (GRUPOS_VALIDOS.includes(grupo)) {
+    return configuracion['fase_grupos_habilitada'] !== 'false';
   }
+  const fase = FASES_MAP[grupo];
+  if (!fase) return false;
+  return configuracion[fase.hab] === 'true';
+}
 
   function getColorCard(pred, resultado, partido) {
     if (!resultado) return null;

@@ -368,6 +368,7 @@ export default function AdminScreen({ recargar }) {
           <View style={[styles.configCard, { marginTop: 12 }]}>
             <Text style={styles.configTitle}>🏆 Habilitar Fases Eliminatorias</Text>
             {[
+              { clave: 'fase_grupos_habilitada', fechaClave: 'fecha_limite', label: 'Fase de Grupos (A-L)' },
               { clave: 'fase_r16_habilitada', fechaClave: 'fecha_limite_r16', label: 'Fase de 32 (R16)' },
               { clave: 'fase_r8_habilitada', fechaClave: 'fecha_limite_r8', label: 'Fase de 16 (R8)' },
               { clave: 'fase_r4_habilitada', fechaClave: 'fecha_limite_r4', label: 'Cuartos de Final' },
