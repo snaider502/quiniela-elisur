@@ -27,37 +27,28 @@ export default function ReglasScreen({ recargar }) {
         <Text style={styles.headerText}>📜 Reglas y Premios</Text>
       </View>
 
-      <View style={styles.premioCard}>
-        <Text style={styles.premioLabel}>Total Recaudado</Text>
-        {loading
-          ? <ActivityIndicator color="white" style={{ marginVertical: 8 }} />
-          : <Text style={styles.premioMonto}>Q {total.toLocaleString('es-GT')}.00</Text>
-        }
-        <Text style={styles.premioSub}>{financiero?.total_usuarios || 0} participantes × Q200.00</Text>
-      </View>
-
-      <View style={styles.seccion}>
+            <View style={styles.seccion}>
         <Text style={styles.seccionTitle}>💰 Bolsa de Premios</Text>
         <View style={styles.premioFila}>
           <View style={styles.premioInfo}>
             <Text style={styles.premioPos}>🥇 1er Lugar</Text>
-            <Text style={styles.premioPct}>60%</Text>
+            <Text style={styles.premioPct}>próximamente</Text>
           </View>
-          <Text style={styles.premioQ}>Q {premio1.toLocaleString('es-GT')}.00</Text>
+          
         </View>
         <View style={styles.premioFila}>
           <View style={styles.premioInfo}>
             <Text style={styles.premioPos}>🥈 2do Lugar</Text>
-            <Text style={styles.premioPct}>25%</Text>
+            <Text style={styles.premioPct}>próximamente</Text>
           </View>
-          <Text style={styles.premioQ}>Q {premio2.toLocaleString('es-GT')}.00</Text>
+          
         </View>
         <View style={styles.premioFila}>
           <View style={styles.premioInfo}>
             <Text style={styles.premioPos}>🥉 3er Lugar</Text>
-            <Text style={styles.premioPct}>15%</Text>
+            <Text style={styles.premioPct}>próximamente</Text>
           </View>
-          <Text style={styles.premioQ}>Q {premio3.toLocaleString('es-GT')}.00</Text>
+          
         </View>
       </View>
 
@@ -67,14 +58,14 @@ export default function ReglasScreen({ recargar }) {
         <View style={styles.tabla}>
           <View style={styles.tablaFila}>
             <Text style={styles.tablaTitulo}>Marcador Exacto</Text>
-            <View style={[styles.badge, { backgroundColor: '#2e7d32' }]}>
+            <View style={[styles.badge, { backgroundColor: '#292663' }]}>
               <Text style={styles.badgeTxt}>5 pts</Text>
             </View>
             <Text style={styles.tablaDesc}>Aciertas ganador y marcador exacto</Text>
           </View>
           <View style={styles.tablaFila}>
             <Text style={styles.tablaTitulo}>Ganador Acertado</Text>
-            <View style={[styles.badge, { backgroundColor: '#f57f17' }]}>
+            <View style={[styles.badge, { backgroundColor: '#ffcc40' }]}>
               <Text style={styles.badgeTxt}>1-4 pts</Text>
             </View>
             <Text style={styles.tablaDesc}>5 pts base menos 1 por cada gol de diferencia</Text>
@@ -124,19 +115,19 @@ export default function ReglasScreen({ recargar }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
-  header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
+  header: { backgroundColor: '#292663', padding: 20, alignItems: 'center' },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  premioCard: { backgroundColor: '#2e7d32', margin: 12, borderRadius: 12, padding: 20, alignItems: 'center' },
+  premioCard: { backgroundColor: '#292663', margin: 12, borderRadius: 12, padding: 20, alignItems: 'center' },
   premioLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
   premioMonto: { color: 'white', fontSize: 32, fontWeight: 'bold', marginVertical: 4 },
   premioSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-  seccion: { backgroundColor: 'white', margin: 12, marginTop: 0, borderRadius: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
-  seccionTitle: { fontSize: 15, fontWeight: 'bold', color: '#2e7d32', marginBottom: 12, textTransform: 'uppercase' },
+  seccion: { backgroundColor: 'white', margin: 12, marginTop: 0, borderRadius: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: '#292663' },
+  seccionTitle: { fontSize: 15, fontWeight: 'bold', color: '#292663', marginBottom: 12, textTransform: 'uppercase' },
   premioFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   premioInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   premioPos: { fontSize: 14, color: '#333' },
-  premioPct: { backgroundColor: '#2e7d32', color: 'white', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, fontSize: 11, fontWeight: 'bold' },
-  premioQ: { fontSize: 16, fontWeight: 'bold', color: '#2e7d32' },
+  premioPct: { backgroundColor: '#292663', color: 'white', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, fontSize: 11, fontWeight: 'bold' },
+  premioQ: { fontSize: 16, fontWeight: 'bold', color: '#292663' },
   nota: { fontSize: 12, color: '#666', marginBottom: 12, lineHeight: 18 },
   tabla: { gap: 10 },
   tablaFila: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
@@ -146,7 +137,7 @@ const styles = StyleSheet.create({
   tablaDesc: { fontSize: 11, color: '#666', flex: 1 },
   bonosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   bonoItem: { width: '47%', backgroundColor: '#f0f2f5', borderRadius: 10, padding: 12, alignItems: 'center' },
-  bonoPts: { fontSize: 24, fontWeight: 'bold', color: '#2e7d32' },
+  bonoPts: { fontSize: 24, fontWeight: 'bold', color: '#292663' },
   bonoLabel: { fontSize: 11, color: '#555', textAlign: 'center', marginTop: 2 },
   regla: { fontSize: 12, color: '#555', marginBottom: 10, lineHeight: 18 },
   bold: { fontWeight: 'bold', color: '#333' },

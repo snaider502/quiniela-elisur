@@ -83,7 +83,7 @@ export default function SimuladorScreen({ recargar }) {
 
   const medallas = ['🥇', '🥈', '🥉'];
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
 
   return (
     <View style={styles.container}>
@@ -174,6 +174,6 @@ guion: { fontSize: 13, fontWeight: 'bold', color: '#333' },
   rankPos: { fontSize: 14, width: 26 },
   rankNombre: { flex: 1, fontSize: 11, fontWeight: 'bold', color: '#333' },
   rankPuntos: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  rankTotal: { fontSize: 13, fontWeight: 'bold', color: '#2e7d32' },
+  rankTotal: { fontSize: 13, fontWeight: 'bold', color: '#292663' },
   rankExtra: { fontSize: 9, fontWeight: 'bold', color: '#f9a825', backgroundColor: '#fffde7', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
 });

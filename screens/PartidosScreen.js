@@ -125,7 +125,7 @@ export default function PartidosScreen({ recargar }) {
     return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
 
   const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
   const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -305,34 +305,34 @@ const styles = StyleSheet.create({
   filtrosContainer: { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
   filtrosContent: { paddingHorizontal: 8, paddingVertical: 10 },
   filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
-  filtroBtnActivo: { backgroundColor: '#2e7d32' },
+  filtroBtnActivo: { backgroundColor: '#292663' },
   filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   filtroTxtActivo: { color: 'white' },
   tablaContainer: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 12, elevation: 2 },
-  tablaTitulo: { fontSize: 14, fontWeight: 'bold', color: '#2e7d32', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase' },
-  tablaHeader: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 2, borderBottomColor: '#2e7d32', marginBottom: 4 },
+  tablaTitulo: { fontSize: 14, fontWeight: 'bold', color: '#292663', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase' },
+  tablaHeader: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 2, borderBottomColor: '#292663', marginBottom: 4 },
   tablaFila: { flexDirection: 'row', paddingVertical: 8, alignItems: 'center' },
   tablaFilaPar: { backgroundColor: '#f9f9f9' },
-  tablaFilaClasifica: { borderLeftWidth: 3, borderLeftColor: '#2e7d32' },
+  tablaFilaClasifica: { borderLeftWidth: 3, borderLeftColor: '#292663' },
   tablaCol: { width: 28, textAlign: 'center', fontSize: 12, color: '#333' },
-  tablaColPts: { fontWeight: 'bold', color: '#2e7d32' },
+  tablaColPts: { fontWeight: 'bold', color: '#292663' },
   equipoCell: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tablaPosNum: { fontSize: 11, color: '#888', width: 16, textAlign: 'center' },
   tablaBandera: { width: 18, height: 12, borderRadius: 2 },
   tablaEquipoNombre: { fontSize: 12, fontWeight: 'bold', color: '#333', flex: 1 },
   tablaLeyenda: { fontSize: 10, color: '#888', marginTop: 8, textAlign: 'center' },
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
-  cardConResultado: { borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
+  cardConResultado: { borderLeftWidth: 4, borderLeftColor: '#292663' },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#292663', backgroundColor: '#e3f8fd', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   fecha: { fontSize: 11, color: '#888', flex: 1 },
-  finalTxt: { fontSize: 10, fontWeight: 'bold', color: 'white', backgroundColor: '#2e7d32', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  finalTxt: { fontSize: 10, fontWeight: 'bold', color: 'white', backgroundColor: '#292663', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   cardMid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   equipoContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   equipo: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#333' },
   bandera: { width: 24, height: 16, borderRadius: 2 },
   scoreBox: { backgroundColor: '#212529', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, marginHorizontal: 8 },
-  scoreBoxActivo: { backgroundColor: '#2e7d32' },
+  scoreBoxActivo: { backgroundColor: '#292663' },
   scoreTxt: { color: 'white', fontWeight: 'bold', fontSize: 13 },
   estadio: { fontSize: 10, color: '#999', textAlign: 'center' },
 });

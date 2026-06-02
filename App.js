@@ -44,7 +44,7 @@ function PagoScreen({ onRefresh }) {
         <Text style={styles.pagoCardTxt}>Una vez realizado el pago, el administrador activará tu cuenta.</Text>
       </View>
       <TouchableOpacity style={styles.verificarBtn} onPress={verificarManual} disabled={verificando}>
-        {verificando ? <ActivityIndicator color="white" /> : <Text style={styles.verificarTxt}>🔄 Ya realicé el pago</Text>}
+        {verificando ? <ActivityIndicator size="large" color="#292663" /> : <Text style={styles.verificarTxt}>🔄 Ya realicé el pago</Text>}
       </TouchableOpacity>
       <TouchableOpacity style={styles.salirBtn} onPress={() => supabase.auth.signOut()}>
         <Text style={styles.salirTxt}>Cerrar sesión</Text>
@@ -132,15 +132,21 @@ export default function App() {
       <Tab.Navigator
         screenOptions={{
   headerShown: true,
-  headerStyle: { backgroundColor: '#2e7d32' },
+  headerStyle: { backgroundColor: '#292663' },
   headerTintColor: 'white',
   headerTitleAlign: 'center',
   headerTitle: () => (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold' }}>🏆 Quiniela Mundial 2026</Text>
-      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10 }}>FIFA World Cup 2026</Text>
+  <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
+    <Image 
+      source={require('./assets/elisur.png')} 
+      style={{ width: 150, height: 90, resizeMode: 'contain' }} 
+    />
+    <View>
+      <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>Quiniela ELISUR 2026</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 9 }}>FIFA World Cup 2026</Text>
     </View>
-  ),
+  </View>
+),
           headerLeft: () => (
             <TouchableOpacity
               style={{ marginLeft: 16, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
@@ -162,7 +168,7 @@ export default function App() {
     ) : null}
   </View>
 ),
-          tabBarActiveTintColor: '#2e7d32',
+          tabBarActiveTintColor: '#292663',
           tabBarShowLabel: false,
           tabBarStyle: { height: 65, paddingBottom: 8, paddingTop: 4 },
         }}>

@@ -250,7 +250,7 @@ export default function AdminScreen({ recargar }) {
     return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
   if (!esAdmin) return <View style={styles.center}><Text style={styles.noAdmin}>🔒 Acceso solo para administrador</Text></View>;
 
   return (
@@ -428,7 +428,7 @@ export default function AdminScreen({ recargar }) {
 
           <View style={[styles.configCard, { marginTop: 12 }]}>
             <Text style={styles.configTitle}>⏳ Equipos Pendientes</Text>
-            {equiposPendientes.length === 0 && <Text style={{ color: '#2e7d32', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>✅ Todos confirmados</Text>}
+            {equiposPendientes.length === 0 && <Text style={{ color: '#292663', fontWeight: 'bold', textAlign: 'center', padding: 12 }}>✅ Todos confirmados</Text>}
             {equiposPendientes.map(codigo => (
               <TouchableOpacity key={codigo} style={styles.equipoPendienteRow} onPress={() => setEquipoEditar(codigo)}>
                 <View style={styles.equipoCodigo}>
@@ -553,13 +553,13 @@ const styles = StyleSheet.create({
   noAdmin: { fontSize: 16, color: '#888', textAlign: 'center' },
   tabs: { flexDirection: 'row', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
   tabBtn: { flex: 1, padding: 14, alignItems: 'center' },
-  tabBtnActivo: { borderBottomWidth: 3, borderBottomColor: '#1a237e' },
+  tabBtnActivo: { borderBottomWidth: 3, borderBottomColor: '#292663' },
   tabTxt: { fontSize: 18, color: '#888' },
-  tabTxtActivo: { color: '#1a237e' },
+  tabTxtActivo: { color: '#292663' },
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
-  cardCompleto: { borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
+  cardCompleto: { borderLeftWidth: 4, borderLeftColor: '#292663' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#292663', backgroundColor: '#e3f8fd', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   fecha: { fontSize: 11, color: '#888' },
   checkmark: { fontSize: 14 },
   cardMid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
@@ -567,9 +567,9 @@ const styles = StyleSheet.create({
   equipo: { flex: 1, fontSize: 12, fontWeight: 'bold', color: '#333' },
   bandera: { width: 22, height: 15, borderRadius: 2 },
   inputsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8 },
-  input: { width: 44, height: 44, borderWidth: 2, borderColor: '#1a237e', borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 18, color: '#333' },
+  input: { width: 44, height: 44, borderWidth: 2, borderColor: '#292663', borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 18, color: '#333' },
   guion: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  guardarBtn: { backgroundColor: '#1a237e', borderRadius: 8, padding: 10, alignItems: 'center' },
+  guardarBtn: { backgroundColor: '#292663', borderRadius: 8, padding: 10, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 13 },
   borrarBtn: { backgroundColor: '#ffebee', borderRadius: 8, padding: 8, alignItems: 'center', marginTop: 6 },
   borrarTxt: { color: '#c62828', fontWeight: 'bold', fontSize: 12 },
@@ -578,42 +578,42 @@ const styles = StyleSheet.create({
   userName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   userEmail: { fontSize: 11, color: '#888', marginTop: 2 },
   estadoBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  estadoActivo: { backgroundColor: '#e8f5e9' },
+  estadoActivo: { backgroundColor: '#e3f8fd' },
   estadoInactivo: { backgroundColor: '#ffebee' },
   estadoTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
-  btnActivar: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  btnActivar: { backgroundColor: '#292663', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   btnDesactivar: { backgroundColor: '#c62828', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   btnTxt: { color: 'white', fontSize: 12, fontWeight: 'bold' },
   btnEliminar: { backgroundColor: '#333', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   configCard: { backgroundColor: 'white', borderRadius: 12, padding: 16, elevation: 2 },
-  configTitle: { fontSize: 15, fontWeight: 'bold', color: '#1a237e', marginBottom: 8 },
+  configTitle: { fontSize: 15, fontWeight: 'bold', color: '#292663', marginBottom: 8 },
   configDesc: { fontSize: 12, color: '#666', marginBottom: 12, lineHeight: 18 },
   configActual: { fontSize: 12, color: '#888', marginBottom: 8 },
   configInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 6, color: '#333' },
   configHint: { fontSize: 11, color: '#aaa', marginBottom: 12 },
-  configBtn: { backgroundColor: '#1a237e', borderRadius: 8, padding: 12, alignItems: 'center' },
+  configBtn: { backgroundColor: '#292663', borderRadius: 8, padding: 12, alignItems: 'center' },
   faseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   faseLabel: { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 4 },
   faseFechaInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, padding: 6, fontSize: 11, color: '#333' },
   faseBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth: 70, alignItems: 'center' },
-  faseBtnActivo: { backgroundColor: '#2e7d32' },
+  faseBtnActivo: { backgroundColor: '#292663' },
   faseBtnInactivo: { backgroundColor: '#888' },
   faseBtnTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   equipoPendienteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   equipoCodigo: { flex: 1 },
   equipoCodigoTxt: { fontSize: 15, fontWeight: 'bold', color: '#333' },
   equipoPendienteTxt: { fontSize: 11, color: '#f9a825' },
-  equipoEditarBtn: { backgroundColor: '#1a237e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  equipoEditarBtn: { backgroundColor: '#292663', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   bonoCard: { backgroundColor: 'white', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
-  bonoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#1a237e', marginBottom: 4 },
-  bonoActual: { fontSize: 12, color: '#2e7d32', fontWeight: 'bold' },
+  bonoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#292663', marginBottom: 4 },
+  bonoActual: { fontSize: 12, color: '#292663', fontWeight: 'bold' },
   bonoEquipoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f0f2f5', marginRight: 6, minWidth: 80 },
-  bonoEquipoBtnActivo: { backgroundColor: '#1a237e' },
+  bonoEquipoBtnActivo: { backgroundColor: '#292663' },
   bonoEquipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333' },
   bonoEquipoBtnTxtActivo: { color: 'white' },
   bonoEquipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5', marginRight: 4 },
   bonoEquipoBtnSmallTxt: { fontSize: 10, fontWeight: 'bold', color: '#333' },
   bonoEquipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
   grupoBonoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  grupoBonoLabel: { fontSize: 12, fontWeight: 'bold', color: '#1a237e', width: 60 },
+  grupoBonoLabel: { fontSize: 12, fontWeight: 'bold', color: '#292663', width: 60 },
 });

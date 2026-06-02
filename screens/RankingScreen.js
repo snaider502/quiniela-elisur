@@ -57,7 +57,7 @@ export default function RankingScreen({ recargar }) {
 
   function getFlecha(userId) {
     const mov = movimientos[userId];
-    if (mov === 'subio') return { icon: '▲', color: '#2e7d32' };
+    if (mov === 'subio') return { icon: '▲', color: '#292663' };
     if (mov === 'bajo') return { icon: '▼', color: '#c62828' };
     if (mov === 'nuevo') return { icon: '★', color: '#f9a825' };
     return { icon: '—', color: '#888' };
@@ -67,8 +67,8 @@ export default function RankingScreen({ recargar }) {
 
   if (loading) return (
     <View style={styles.center}>
-      <ActivityIndicator size="large" color="#2e7d32" />
-      <Text style={{ marginTop: 16, fontSize: 14, color: '#2e7d32', fontWeight: 'bold' }}>Toca el boton actualizar en la parte superior...</Text>
+      <ActivityIndicator size="large" color="#292663" />
+      <Text style={{ marginTop: 16, fontSize: 14, color: '#292663', fontWeight: 'bold' }}>Toca el boton actualizar en la parte superior...</Text>
     </View>
   );
 
@@ -80,7 +80,7 @@ export default function RankingScreen({ recargar }) {
   
 
       <View style={styles.leyenda}>
-        <Text style={styles.leyendaItem}><Text style={{ color: '#2e7d32' }}>▲</Text> Subió</Text>
+        <Text style={styles.leyendaItem}><Text style={{ color: '#292663' }}>▲</Text> Subió</Text>
         <Text style={styles.leyendaItem}><Text style={{ color: '#c62828' }}>▼</Text> Bajó</Text>
         <Text style={styles.leyendaItem}><Text style={{ color: '#888' }}>—</Text> Igual</Text>
         <Text style={styles.leyendaItem}><Text style={{ color: '#f9a825' }}>★</Text> Nuevo</Text>
@@ -114,7 +114,7 @@ export default function RankingScreen({ recargar }) {
 const styles = StyleSheet.create({
  container: { flex: 1, backgroundColor: '#f0f2f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#2e7d32', padding: 20, alignItems: 'center' },
+  header: { backgroundColor: '#292663', padding: 20, alignItems: 'center' },
   headerText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 4 },
   leyenda: { flexDirection: 'row', justifyContent: 'center', gap: 16, backgroundColor: 'white', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
@@ -126,5 +126,5 @@ const styles = StyleSheet.create({
   pos: { fontSize: 20, width: 40 },
   nombre: { flex: 1, fontSize: 15, fontWeight: 'bold', color: '#333' },
   flecha: { fontSize: 14, fontWeight: 'bold', marginRight: 8, width: 20, textAlign: 'center' },
-  puntos: { fontSize: 16, fontWeight: 'bold', color: '#2e7d32' },
+  puntos: { fontSize: 16, fontWeight: 'bold', color: '#292663' },
 });

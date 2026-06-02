@@ -236,7 +236,7 @@ export default function QuinielaScreen({ recargar, activo }) {
 
   const hayAlgoHabilitado = partidosVisibles.some(p => estaHabilitado(p));
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
 
   if (!activo) return (
     <View style={styles.bloqueado}>
@@ -387,16 +387,16 @@ const styles = StyleSheet.create({
   bloqueadoTitulo: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 12, textAlign: 'center' },
   bloqueadoMsg: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 22 },
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
-  cardExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
+  cardExact: { backgroundColor: '#e3f8fd', borderLeftWidth: 4, borderLeftColor: '#292663' },
   cardWinner: { backgroundColor: '#fffde7', borderLeftWidth: 4, borderLeftColor: '#f9a825' },
   cardWrong: { backgroundColor: '#ffebee', borderLeftWidth: 4, borderLeftColor: '#c62828' },
   cardCerrado: { opacity: 0.6 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
-  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#292663', backgroundColor: '#e3f8fd', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   fecha: { fontSize: 11, color: '#888', flex: 1 },
   resultadoRealBadge: { backgroundColor: '#212529', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   resultadoRealTxt: { color: 'white', fontSize: 11, fontWeight: 'bold' },
-  ptsLabel: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
+  ptsLabel: { fontSize: 11, fontWeight: 'bold', color: '#292663' },
   cardMid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   equipoContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   equipo: { flex: 1, fontSize: 12, fontWeight: 'bold', color: '#333' },
@@ -409,20 +409,20 @@ const styles = StyleSheet.create({
   predGuardadaTxt: { color: 'white', fontSize: 16, fontWeight: 'bold' },
   estadoRow: { marginTop: 8, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, alignSelf: 'flex-start' },
   estadoTxt: { fontSize: 11, fontWeight: 'bold', color: '#555' },
-  estadoGuardado: { backgroundColor: '#e8f5e9' },
+  estadoGuardado: { backgroundColor: '#e3f8fd' },
   estadoPendiente: { backgroundColor: '#fff8e1' },
   estadoCerrado: { backgroundColor: '#f5f5f5' },
   estadoTerminado: { backgroundColor: '#eeeeee' },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#eee' },
-  guardarBtn: { backgroundColor: '#2e7d32', borderRadius: 12, padding: 16, alignItems: 'center' },
+  guardarBtn: { backgroundColor: '#292663', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
   alertaBanner: { margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, borderLeftWidth: 4, elevation: 2 },
-  alertaCompleta: { backgroundColor: '#e8f5e9', borderLeftColor: '#2e7d32' },
+  alertaCompleta: { backgroundColor: '#e3f8fd', borderLeftColor: '#292663' },
   alertaIncompleta: { backgroundColor: '#fff8e1', borderLeftColor: '#f9a825' },
   alertaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   alertaIcono: { fontSize: 20 },
   alertaTxt: { fontSize: 13, color: '#555' },
-  alertaBold: { fontWeight: 'bold', color: '#f57f17' },
+  alertaBold: { fontWeight: 'bold', color: '#ffcc40' },
   cronometro: { alignItems: 'center' },
   cronometroLabel: { fontSize: 11, color: '#888', marginBottom: 8 },
   cronometroRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   cronometroSub: { color: 'rgba(255,255,255,0.6)', fontSize: 9, marginTop: 2 },
   cronometroDos: { color: '#333', fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
  filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
-  filtroBtnActivo: { backgroundColor: '#2e7d32' },
+  filtroBtnActivo: { backgroundColor: '#292663' },
   filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   filtroTxtActivo: { color: 'white' },
 });

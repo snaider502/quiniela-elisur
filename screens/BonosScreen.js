@@ -213,7 +213,7 @@ export default function BonosScreen({ recargar }) {
   }
 
   if (loading) return (
-    <View style={styles.center}><ActivityIndicator size="large" color="#f57f17" /></View>
+    <View style={styles.center}><ActivityIndicator size="large" color="#ffcc40" /></View>
   );
 
   function calcularProgresoBonus() {
@@ -254,7 +254,7 @@ function calcularTiempoRestante() {
         <Text style={{ flex: 1, fontSize: 13, color: '#555' }}>
           {completo
             ? <Text><Text style={{ fontWeight: 'bold' }}>¡Listo! </Text>Has completado todos los bonos.</Text>
-            : <Text>Te faltan <Text style={{ fontWeight: 'bold', color: '#f57f17' }}>{faltantes} bonos</Text> por llenar de {total}</Text>
+            : <Text>Te faltan <Text style={{ fontWeight: 'bold', color: '#ffcc40' }}>{faltantes} bonos</Text> por llenar de {total}</Text>
           }
         </Text>
       </View>
@@ -460,21 +460,21 @@ const styles = StyleSheet.create({
   alertContainer: { padding: 8, alignItems: 'center' },
   alertTxt: { color: '#c62828', fontWeight: 'bold', fontSize: 13 },
   seccion: { backgroundColor: 'white', margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, elevation: 2 },
-  seccionExact: { backgroundColor: '#e8f5e9', borderLeftWidth: 4, borderLeftColor: '#2e7d32' },
+  seccionExact: { backgroundColor: '#e3f8fd', borderLeftWidth: 4, borderLeftColor: '#292663' },
   seccionWrong: { backgroundColor: '#ffebee', borderLeftWidth: 4, borderLeftColor: '#c62828' },
   seccionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   seccionIcono: { fontSize: 24 },
   seccionTitulo: { fontSize: 14, fontWeight: 'bold', color: '#333' },
-  seccionPts: { fontSize: 11, color: '#f57f17', fontWeight: 'bold' },
-  seleccionadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, maxWidth: 140 },
-  badgeExact: { backgroundColor: '#c8e6c9' },
+  seccionPts: { fontSize: 11, color: '#ffcc40', fontWeight: 'bold' },
+  seleccionadoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#e3f8fd', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, maxWidth: 140 },
+  badgeExact: { backgroundColor: '#b3ecfa' },
   badgeWrong: { backgroundColor: '#ffcdd2' },
   banderaBadge: { width: 18, height: 12, borderRadius: 2 },
-  seleccionadoTxt: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
+  seleccionadoTxt: { fontSize: 11, fontWeight: 'bold', color: '#292663' },
   equiposGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   equipoBtnGrid: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f2f5', minWidth: '30%' },
   equipoBtnSeleccionado: { backgroundColor: '#1565c0' },
-  equipoBtnExact: { backgroundColor: '#2e7d32' },
+  equipoBtnExact: { backgroundColor: '#292663' },
   equipoBtnWrong: { backgroundColor: '#c62828' },
   equipoBtnDisabled: { opacity: 0.5 },
   equipoBtnTxt: { fontSize: 11, fontWeight: 'bold', color: '#333', flex: 1 },
@@ -483,17 +483,17 @@ const styles = StyleSheet.create({
   checkIcon: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   wrongIcon: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   grupoRow: { marginBottom: 10, padding: 6, borderRadius: 8 },
-  grupoRowExact: { backgroundColor: '#e8f5e9' },
+  grupoRowExact: { backgroundColor: '#e3f8fd' },
   grupoRowWrong: { backgroundColor: '#ffebee' },
-  grupoLabel: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', marginBottom: 6 },
+  grupoLabel: { fontSize: 12, fontWeight: 'bold', color: '#292663', marginBottom: 6 },
   grupoEquipos: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   equipoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: '#f0f2f5' },
   banderaBtnSmall: { width: 14, height: 10, borderRadius: 2 },
   equipoBtnSmallTxt: { fontSize: 10, fontWeight: 'bold', color: '#333' },
   footer: { margin: 12, marginTop: 16 },
-  guardarBtn: { backgroundColor: '#f57f17', borderRadius: 12, padding: 16, alignItems: 'center' },
+  guardarBtn: { backgroundColor: '#ffcc40', borderRadius: 12, padding: 16, alignItems: 'center' },
   guardarTxt: { color: 'white', fontWeight: 'bold', fontSize: 15 },
   bonoBanner: { margin: 12, marginBottom: 0, borderRadius: 12, padding: 14, borderLeftWidth: 4, elevation: 2 },
-bonoBannerCompleto: { backgroundColor: '#e8f5e9', borderLeftColor: '#2e7d32' },
+bonoBannerCompleto: { backgroundColor: '#e3f8fd', borderLeftColor: '#292663' },
 bonoBannerIncompleto: { backgroundColor: '#fff8e1', borderLeftColor: '#f9a825' },
 });

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Quiniela Mundial 2026",
-    "slug": "quiniela-mundial-2026",
+    "name": "Quiniela ELISUR 2026",
+    "slug": "quiniela-elisur",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,18 +9,18 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#2e7d32"
+      "backgroundColor": "292663"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.snaider502.quiniela2026"
+      "bundleIdentifier": "com.snaider502.quinielaelisur"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#2e7d32"
+        "backgroundColor": "#292663"
       },
-      "package": "com.snaider502.quiniela2026"
+      "package": "com.snaider502.quinielaelisur"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,9 +29,6 @@
       "eas": {
         "projectId": "19fd1cba-9c34-42ef-9eaf-1ee9793a626a"
       }
-    },
-    "plugins": [
-      "expo-sharing"
-    ]
+    }
   }
 }
