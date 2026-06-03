@@ -15,7 +15,7 @@ const BANDERAS = {
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
   'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
-  'suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
+  ' suecia': 'se',' Suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
   'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
   'bosnia y herzegovina': 'ba', 'bosnia': 'ba', 'italia': 'it',
   'r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
@@ -117,6 +117,9 @@ export default function PartidosScreen({ recargar }) {
   const inicioMundial = new Date('2026-06-11T13:00:00');
   const diff = inicioMundial - ahora;
   const mundialIniciado = diff <= 0;
+  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
   function formatearFecha(fecha) {
     if (!fecha) return '';
@@ -127,125 +130,126 @@ export default function PartidosScreen({ recargar }) {
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
 
-  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
   return (
     <View style={styles.container}>
-
-      {!mundialIniciado && (
-        <View style={styles.cuentaContainer}>
-          <Text style={styles.cuentaTitulo}>🏆 FIFA World Cup 2026</Text>
-          <Text style={styles.cuentaSub}>El torneo más grande de la historia comienza en:</Text>
-          <View style={styles.cuentaRow}>
-            <View style={styles.cuentaItem}>
-              <Text style={styles.cuentaNum}>{dias}</Text>
-              <Text style={styles.cuentaLabel}>días</Text>
-            </View>
-            <Text style={styles.cuentaDos}>:</Text>
-            <View style={styles.cuentaItem}>
-              <Text style={styles.cuentaNum}>{String(horas).padStart(2,'0')}</Text>
-              <Text style={styles.cuentaLabel}>hrs</Text>
-            </View>
-            <Text style={styles.cuentaDos}>:</Text>
-            <View style={styles.cuentaItem}>
-              <Text style={styles.cuentaNum}>{String(minutos).padStart(2,'0')}</Text>
-              <Text style={styles.cuentaLabel}>min</Text>
-            </View>
-          </View>
-          <Text style={styles.cuentaFecha}>11 Jun 2026 · México vs Sudáfrica · Estadio Azteca</Text>
-          <View style={styles.cuentaStats}>
-            <View style={styles.cuentaStat}>
-              <Text style={styles.cuentaStatNum}>48</Text>
-              <Text style={styles.cuentaStatLabel}>Selecciones</Text>
-            </View>
-            <View style={styles.cuentaStat}>
-              <Text style={styles.cuentaStatNum}>104</Text>
-              <Text style={styles.cuentaStatLabel}>Partidos</Text>
-            </View>
-            <View style={styles.cuentaStat}>
-              <Text style={styles.cuentaStatNum}>16</Text>
-              <Text style={styles.cuentaStatLabel}>Estadios</Text>
-            </View>
-            <View style={styles.cuentaStat}>
-              <Text style={styles.cuentaStatNum}>3</Text>
-              <Text style={styles.cuentaStatLabel}>Países</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {mundialIniciado && partidosVivo.length > 0 && (
-        <View style={styles.vivoContainer}>
-          <Text style={styles.vivoTitle}>🔴 EN VIVO AHORA</Text>
-          {partidosVivo.map(p => (
-            <View key={p.fixture.id} style={styles.vivoCard}>
-              <View style={styles.vivoTeams}>
-                <Text style={styles.vivoTeam} numberOfLines={1}>{p.teams.home.name}</Text>
-                <View style={styles.vivoScore}>
-                  <Text style={styles.vivoScoreTxt}>{p.goals.home ?? 0} - {p.goals.away ?? 0}</Text>
-                  <Text style={styles.vivoMinuto}>{p.fixture.status.elapsed}'</Text>
-                </View>
-                <Text style={[styles.vivoTeam, { textAlign: 'right' }]} numberOfLines={1}>{p.teams.away.name}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={GRUPOS}
-        keyExtractor={g => g}
-        style={styles.filtrosContainer}
-        contentContainerStyle={styles.filtrosContent}
-        renderItem={({ item: g }) => (
-          <TouchableOpacity
-            style={[styles.filtroBtn, grupoActivo === g && styles.filtroBtnActivo]}
-            onPress={() => setGrupoActivo(g)}>
-            <Text style={[styles.filtroTxt, grupoActivo === g && styles.filtroTxtActivo]}>{g}</Text>
-          </TouchableOpacity>
-        )}
-      />
-
       <FlatList
         data={partidosFiltrados}
         keyExtractor={item => item.id.toString()}
-        contentContainerStyle={{ padding: 12 }}
-        ListHeaderComponent={esGrupoSimple && tablaGrupo.length > 0 ? (
-          <View style={styles.tablaContainer}>
-            <Text style={styles.tablaTitulo}>Tabla Grupo {grupoActivo}</Text>
-            <View style={styles.tablaHeader}>
-              <Text style={[styles.tablaCol, { flex: 2 }]}>Equipo</Text>
-              <Text style={styles.tablaCol}>PJ</Text>
-              <Text style={styles.tablaCol}>PG</Text>
-              <Text style={styles.tablaCol}>PE</Text>
-              <Text style={styles.tablaCol}>PP</Text>
-              <Text style={styles.tablaCol}>GF</Text>
-              <Text style={styles.tablaCol}>GC</Text>
-              <Text style={[styles.tablaCol, styles.tablaColPts]}>PTS</Text>
+        stickyHeaderIndices={[0]}
+        contentContainerStyle={{ padding: 12, paddingTop: 0 }}
+        ListHeaderComponent={
+          <>
+            <View style={styles.filtrosWrapper}>
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={GRUPOS}
+                keyExtractor={g => g}
+                contentContainerStyle={styles.filtrosContent}
+                renderItem={({ item: g }) => (
+                  <TouchableOpacity
+                    style={[styles.filtroBtn, grupoActivo === g && styles.filtroBtnActivo]}
+                    onPress={() => setGrupoActivo(g)}>
+                    <Text style={[styles.filtroTxt, grupoActivo === g && styles.filtroTxtActivo]}>{g}</Text>
+                  </TouchableOpacity>
+                )}
+              />
             </View>
-            {tablaGrupo.map((equipo, i) => (
-              <View key={equipo.nombre} style={[styles.tablaFila, i % 2 === 0 && styles.tablaFilaPar, i < 2 && styles.tablaFilaClasifica]}>
-                <View style={[styles.equipoCell, { flex: 2 }]}>
-                  <Text style={styles.tablaPosNum}>{i + 1}</Text>
-                  {getBandera(equipo.nombre) && <Image source={{ uri: getBandera(equipo.nombre) }} style={styles.tablaBandera} />}
-                  <Text style={styles.tablaEquipoNombre} numberOfLines={1}>{equipo.nombre}</Text>
+
+            {!mundialIniciado && (
+              <View style={styles.cuentaContainer}>
+                <Text style={styles.cuentaTitulo}>🏆 FIFA World Cup 2026</Text>
+                <Text style={styles.cuentaSub}>El torneo más grande de la historia comienza en:</Text>
+                <View style={styles.cuentaRow}>
+                  <View style={styles.cuentaItem}>
+                    <Text style={styles.cuentaNum}>{dias}</Text>
+                    <Text style={styles.cuentaLabel}>días</Text>
+                  </View>
+                  <Text style={styles.cuentaDos}>:</Text>
+                  <View style={styles.cuentaItem}>
+                    <Text style={styles.cuentaNum}>{String(horas).padStart(2,'0')}</Text>
+                    <Text style={styles.cuentaLabel}>hrs</Text>
+                  </View>
+                  <Text style={styles.cuentaDos}>:</Text>
+                  <View style={styles.cuentaItem}>
+                    <Text style={styles.cuentaNum}>{String(minutos).padStart(2,'0')}</Text>
+                    <Text style={styles.cuentaLabel}>min</Text>
+                  </View>
                 </View>
-                <Text style={styles.tablaCol}>{equipo.pj}</Text>
-                <Text style={styles.tablaCol}>{equipo.pg}</Text>
-                <Text style={styles.tablaCol}>{equipo.pe}</Text>
-                <Text style={styles.tablaCol}>{equipo.pp}</Text>
-                <Text style={styles.tablaCol}>{equipo.gf}</Text>
-                <Text style={styles.tablaCol}>{equipo.gc}</Text>
-                <Text style={[styles.tablaCol, styles.tablaColPts]}>{equipo.pts}</Text>
+                <Text style={styles.cuentaFecha}>11 Jun 2026 · México vs Sudáfrica · Estadio Azteca</Text>
+                <View style={styles.cuentaStats}>
+                  <View style={styles.cuentaStat}>
+                    <Text style={styles.cuentaStatNum}>48</Text>
+                    <Text style={styles.cuentaStatLabel}>Selecciones</Text>
+                  </View>
+                  <View style={styles.cuentaStat}>
+                    <Text style={styles.cuentaStatNum}>104</Text>
+                    <Text style={styles.cuentaStatLabel}>Partidos</Text>
+                  </View>
+                  <View style={styles.cuentaStat}>
+                    <Text style={styles.cuentaStatNum}>16</Text>
+                    <Text style={styles.cuentaStatLabel}>Estadios</Text>
+                  </View>
+                  <View style={styles.cuentaStat}>
+                    <Text style={styles.cuentaStatNum}>3</Text>
+                    <Text style={styles.cuentaStatLabel}>Países</Text>
+                  </View>
+                </View>
               </View>
-            ))}
-            <Text style={styles.tablaLeyenda}>🟢 Clasifica a siguiente ronda</Text>
-          </View>
-        ) : null}
+            )}
+
+            {mundialIniciado && partidosVivo.length > 0 && (
+              <View style={styles.vivoContainer}>
+                <Text style={styles.vivoTitle}>🔴 EN VIVO AHORA</Text>
+                {partidosVivo.map(p => (
+                  <View key={p.fixture.id} style={styles.vivoCard}>
+                    <View style={styles.vivoTeams}>
+                      <Text style={styles.vivoTeam} numberOfLines={1}>{p.teams.home.name}</Text>
+                      <View style={styles.vivoScore}>
+                        <Text style={styles.vivoScoreTxt}>{p.goals.home ?? 0} - {p.goals.away ?? 0}</Text>
+                        <Text style={styles.vivoMinuto}>{p.fixture.status.elapsed}'</Text>
+                      </View>
+                      <Text style={[styles.vivoTeam, { textAlign: 'right' }]} numberOfLines={1}>{p.teams.away.name}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {esGrupoSimple && tablaGrupo.length > 0 && (
+              <View style={styles.tablaContainer}>
+                <Text style={styles.tablaTitulo}>Tabla Grupo {grupoActivo}</Text>
+                <View style={styles.tablaHeader}>
+                  <Text style={[styles.tablaCol, { flex: 2 }]}>Equipo</Text>
+                  <Text style={styles.tablaCol}>PJ</Text>
+                  <Text style={styles.tablaCol}>PG</Text>
+                  <Text style={styles.tablaCol}>PE</Text>
+                  <Text style={styles.tablaCol}>PP</Text>
+                  <Text style={styles.tablaCol}>GF</Text>
+                  <Text style={styles.tablaCol}>GC</Text>
+                  <Text style={[styles.tablaCol, styles.tablaColPts]}>PTS</Text>
+                </View>
+                {tablaGrupo.map((equipo, i) => (
+                  <View key={equipo.nombre} style={[styles.tablaFila, i % 2 === 0 && styles.tablaFilaPar, i < 2 && styles.tablaFilaClasifica]}>
+                    <View style={[styles.equipoCell, { flex: 2 }]}>
+                      <Text style={styles.tablaPosNum}>{i + 1}</Text>
+                      {getBandera(equipo.nombre) && <Image source={{ uri: getBandera(equipo.nombre) }} style={styles.tablaBandera} />}
+                      <Text style={styles.tablaEquipoNombre} numberOfLines={1}>{equipo.nombre}</Text>
+                    </View>
+                    <Text style={styles.tablaCol}>{equipo.pj}</Text>
+                    <Text style={styles.tablaCol}>{equipo.pg}</Text>
+                    <Text style={styles.tablaCol}>{equipo.pe}</Text>
+                    <Text style={styles.tablaCol}>{equipo.pp}</Text>
+                    <Text style={styles.tablaCol}>{equipo.gf}</Text>
+                    <Text style={styles.tablaCol}>{equipo.gc}</Text>
+                    <Text style={[styles.tablaCol, styles.tablaColPts]}>{equipo.pts}</Text>
+                  </View>
+                ))}
+                <Text style={styles.tablaLeyenda}>🟢 Clasifica a siguiente ronda</Text>
+              </View>
+            )}
+          </>
+        }
         renderItem={({ item }) => (
           <View style={[styles.card, item.resultado && styles.cardConResultado]}>
             <View style={styles.cardTop}>
@@ -281,7 +285,13 @@ export default function PartidosScreen({ recargar }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  cuentaContainer: { backgroundColor: '#0a0d2c', margin: 12, marginBottom: 0, borderRadius: 12, padding: 16, alignItems: 'center' },
+  filtrosWrapper: { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  filtrosContent: { paddingHorizontal: 8, paddingVertical: 10 },
+  filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
+  filtroBtnActivo: { backgroundColor: '#292663' },
+  filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
+  filtroTxtActivo: { color: 'white' },
+  cuentaContainer: { backgroundColor: '#292663', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12, marginTop: 12 },
   cuentaTitulo: { color: 'white', fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   cuentaSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 12, textAlign: 'center' },
   cuentaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
@@ -294,7 +304,7 @@ const styles = StyleSheet.create({
   cuentaStat: { alignItems: 'center' },
   cuentaStatNum: { color: '#f9a825', fontSize: 18, fontWeight: 'bold' },
   cuentaStatLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 9 },
-  vivoContainer: { backgroundColor: '#fff5f5', margin: 12, marginBottom: 0, borderRadius: 12, padding: 12, borderLeftWidth: 4, borderLeftColor: '#c62828' },
+  vivoContainer: { backgroundColor: '#fff5f5', borderRadius: 12, padding: 12, borderLeftWidth: 4, borderLeftColor: '#c62828', marginBottom: 12 },
   vivoTitle: { fontSize: 12, fontWeight: 'bold', color: '#c62828', marginBottom: 8, letterSpacing: 0.5 },
   vivoCard: { backgroundColor: 'white', borderRadius: 8, padding: 10, marginBottom: 6, elevation: 1 },
   vivoTeams: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -302,12 +312,6 @@ const styles = StyleSheet.create({
   vivoScore: { alignItems: 'center', paddingHorizontal: 12 },
   vivoScoreTxt: { fontSize: 16, fontWeight: 'bold', color: '#c62828' },
   vivoMinuto: { fontSize: 10, color: '#888' },
-  filtrosContainer: { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  filtrosContent: { paddingHorizontal: 8, paddingVertical: 10 },
-  filtroBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f2f5', marginHorizontal: 4 },
-  filtroBtnActivo: { backgroundColor: '#292663' },
-  filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
-  filtroTxtActivo: { color: 'white' },
   tablaContainer: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 12, elevation: 2 },
   tablaTitulo: { fontSize: 14, fontWeight: 'bold', color: '#292663', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase' },
   tablaHeader: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 2, borderBottomColor: '#292663', marginBottom: 4 },
@@ -324,7 +328,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
   cardConResultado: { borderLeftWidth: 4, borderLeftColor: '#292663' },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#292663', backgroundColor: '#e3f8fd', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  grupoBadge: { fontSize: 11, fontWeight: 'bold', color: '#292663', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   fecha: { fontSize: 11, color: '#888', flex: 1 },
   finalTxt: { fontSize: 10, fontWeight: 'bold', color: 'white', backgroundColor: '#292663', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   cardMid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },

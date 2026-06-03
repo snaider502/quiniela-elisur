@@ -19,7 +19,7 @@ const BANDERAS = {
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
   'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
-  'suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
+  'suecia': 'se','Suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
   'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
   'bosnia y herzegovina': 'ba', 'bosnia': 'ba', 'italia': 'it',
   'r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
@@ -227,56 +227,58 @@ export default function PrediccionesScreen({ recargar }) {
       )}
 
       {filtro === 'Bonos' && (
-        <FlatList
-          data={usuarios}
-          keyExtractor={u => u.id}
-          contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
-          renderItem={({ item: u, index: i }) => {
-            const medallas = ['🥇', '🥈', '🥉'];
-            const bonosMap = {};
-            prediccionesBonos.filter(b => b.usuario_id === u.id).forEach(b => { bonosMap[b.clave] = b.valor; });
-            return (
-              <View style={styles.bonoUserCard}>
-                <View style={styles.bonoUserHeader}>
-                  <Text style={styles.bonoUserPos}>{medallas[i] || i + 1}</Text>
-                  <Text style={styles.bonoUserNombre}>{u.nombre}</Text>
-                  <Text style={styles.bonoUserPuntos}>{u.puntos} pts</Text>
-                </View>
-                <Text style={styles.bonoSeccion}>🏆 Principales</Text>
-                <View style={styles.bonoGrid}>
-                  {BONOS_KEYS.map(clave => (
-                    <View key={clave} style={styles.bonoItem}>
-                      <Text style={styles.bonoItemIcon}>{BONOS_LABELS[clave].icon}</Text>
-                      <Text style={styles.bonoItemLabel}>{BONOS_LABELS[clave].label}</Text>
-                      <Text style={styles.bonoItemValor} numberOfLines={1}>{bonosMap[clave] || '-'}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={styles.bonoSeccion}>🥇 Líderes de Grupo</Text>
-                <View style={styles.bonoGrid}>
-                  {GRUPOS.map(grupo => (
-                    <View key={grupo} style={styles.bonoItem}>
-                      <Text style={styles.bonoItemIcon}>🏅</Text>
-                      <Text style={styles.bonoItemLabel}>Grupo {grupo}</Text>
-                      <Text style={styles.bonoItemValor} numberOfLines={1}>{bonosMap[`lider_${grupo}`] || '-'}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={styles.bonoSeccion}>3️⃣ Mejores Terceros</Text>
-                <View style={styles.bonoGrid}>
-                  {Array.from({length: 8}, (_, idx) => (
-                    <View key={idx} style={styles.bonoItem}>
-                      <Text style={styles.bonoItemIcon}>3️⃣</Text>
-                      <Text style={styles.bonoItemLabel}>#{idx + 1}</Text>
-                      <Text style={styles.bonoItemValor} numberOfLines={1}>{bonosMap[`mejor_tercero_${idx+1}`] || '-'}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            );
-          }}
-        />
-      )}
+  <FlatList
+    data={usuarios}
+    keyExtractor={u => u.id}
+    contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
+    renderItem={({ item: u, index: i }) => {
+      const medallas = ['🥇', '🥈', '🥉'];
+      const bonosMap = {};
+      prediccionesBonos.filter(b => b.usuario_id === u.id).forEach(b => { bonosMap[b.clave] = b.valor; });
+      return (
+        <View style={styles.bonoUserCard}>
+          <View style={styles.bonoUserHeader}>
+            <Text style={styles.bonoUserPos}>{medallas[i] || i + 1}</Text>
+            <Text style={styles.bonoUserNombre}>{u.nombre}</Text>
+            <Text style={styles.bonoUserPuntos}>{u.puntos} pts</Text>
+          </View>
+
+          <View style={styles.bonoFilaCompacta}>
+            {BONOS_KEYS.map(clave => (
+              <View key={clave} style={styles.bonoChipCompacto}>
+  <Text style={styles.bonoChipIcon}>{BONOS_LABELS[clave].icon}</Text>
+  {getBandera(bonosMap[clave]) && <Image source={{ uri: getBandera(bonosMap[clave]) }} style={{ width: 16, height: 11, borderRadius: 2 }} />}
+  <Text style={styles.bonoChipValor} numberOfLines={1}>{bonosMap[clave] || '-'}</Text>
+</View>
+            ))}
+          </View>
+
+          <View style={styles.bonoFilaGrupos}>
+            {GRUPOS.map(grupo => (
+              <View key={grupo} style={styles.bonoGrupoChip}>
+  <Text style={styles.bonoGrupoLabel}>{grupo}</Text>
+  {getBandera(bonosMap[`lider_${grupo}`]) && <Image source={{ uri: getBandera(bonosMap[`lider_${grupo}`]) }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
+  <Text style={styles.bonoGrupoValor} numberOfLines={1}>{bonosMap[`lider_${grupo}`] ? bonosMap[`lider_${grupo}`].split(' ')[0] : '-'}</Text>
+</View>
+            ))}
+          </View>
+
+          <View style={styles.bonoFilaTerceros}>
+            <Text style={styles.bonoSeccionInline}>3️⃣ </Text>
+            {Array.from({length: 8}, (_, idx) => (
+              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff8e1', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 3 }}>
+  {getBandera(bonosMap[`mejor_tercero_${idx+1}`]) && <Image source={{ uri: getBandera(bonosMap[`mejor_tercero_${idx+1}`]) }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
+  <Text style={styles.bonoTerceroChip} numberOfLines={1}>
+    {bonosMap[`mejor_tercero_${idx+1}`] ? bonosMap[`mejor_tercero_${idx+1}`].split(' ')[0] : '-'}
+  </Text>
+</View>
+            ))}
+          </View>
+        </View>
+      );
+    }}
+  />
+  )}
 
     </View>
   );
@@ -320,16 +322,27 @@ const styles = StyleSheet.create({
   ptsBubble: { backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
   ptsBadge: { fontSize: 10, fontWeight: 'bold', color: '#333' },
   userPuntos: { fontSize: 12, fontWeight: 'bold', color: '#292663', width: 55, textAlign: 'right' },
-  bonoUserCard: { backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 10, elevation: 2 },
-  bonoUserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  bonoUserPos: { fontSize: 18, width: 30 },
-  bonoUserNombre: { flex: 1, fontSize: 14, fontWeight: 'bold', color: '#333' },
-  bonoUserPuntos: { fontSize: 12, fontWeight: 'bold', color: '#292663' },
-  bonoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  bonoItem: { backgroundColor: '#f0f2f5', borderRadius: 8, padding: 8, minWidth: '30%', flex: 1, alignItems: 'center' },
-  bonoItemIcon: { fontSize: 16, marginBottom: 2 },
-  bonoItemLabel: { fontSize: 9, color: '#888', marginBottom: 2 },
-  bonoItemValor: { fontSize: 11, fontWeight: 'bold', color: '#333', textAlign: 'center' },
-  bonoItemPts: { fontSize: 9, color: '#ffcc40', marginTop: 2 },
-  bonoSeccion: { fontSize: 11, fontWeight: 'bold', color: '#888', marginTop: 8, marginBottom: 4 },
+  bonoUserCard: { backgroundColor: 'white', borderRadius: 12, padding: 10, marginBottom: 8, elevation: 2 },
+bonoUserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+bonoUserPos: { fontSize: 16, width: 28 },
+bonoUserNombre: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#333' },
+bonoUserPuntos: { fontSize: 11, fontWeight: 'bold', color: '#292663' },
+bonoFilaCompacta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 6 },
+bonoChipCompacto: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, minWidth: '30%', flex: 1 },
+bonoChipIcon: { fontSize: 11 },
+bonoChipValor: { fontSize: 10, fontWeight: 'bold', color: '#333', flex: 1 },
+bonoFilaGrupos: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginBottom: 6 },
+bonoGrupoChip: { alignItems: 'center', backgroundColor: '#e3f8fd', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 3, minWidth: '7%' },
+bonoGrupoLabel: { fontSize: 8, color: '#888', fontWeight: 'bold' },
+bonoGrupoValor: { fontSize: 9, fontWeight: 'bold', color: '#292663' },
+bonoFilaTerceros: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, alignItems: 'center' },
+bonoSeccionInline: { fontSize: 11 },
+bonoTerceroChip: { backgroundColor: '#fff8e1', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 3, fontSize: 9, fontWeight: 'bold', color: '#333' },
+bonoSeccion: { fontSize: 11, fontWeight: 'bold', color: '#888', marginTop: 6, marginBottom: 3 },
+bonoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+bonoItem: { backgroundColor: '#f0f2f5', borderRadius: 6, padding: 6, minWidth: '30%', flex: 1, alignItems: 'center' },
+bonoItemIcon: { fontSize: 14, marginBottom: 1 },
+bonoItemLabel: { fontSize: 8, color: '#888', marginBottom: 1 },
+bonoItemValor: { fontSize: 10, fontWeight: 'bold', color: '#333', textAlign: 'center' },
+bonoItemPts: { fontSize: 8, color: '#ffcc40', marginTop: 1 },
 });
