@@ -33,14 +33,19 @@ function getBandera(pais) {
   return code ? `https://flagcdn.com/h20/${code}.png` : null;
 }
 
+const BONOS_KEYS = ['campeon', 'subcampeon', 'tercer_lugar', 'cuarto_lugar', 'goleador', 'portero'];
 const BONOS_LABELS = {
-  'campeon': { label: 'Campeón', icon: '🏆', pts: 30 },
-  'subcampeon': { label: 'Subcampeón', icon: '🥈', pts: 20 },
-  'tercer_lugar': { label: '3er Lugar', icon: '🥉', pts: 10 },
-  'cuarto_lugar': { label: '4to Lugar', icon: '4️⃣', pts: 5 },
-  'goleador': { label: 'Goleadora', icon: '⚽', pts: 15 },
-  'portero': { label: 'Portero', icon: '🧤', pts: 15 },
+  'campeon': { label: 'Campeón', icon: '🏆' },
+  'subcampeon': { label: 'Subcampeón', icon: '🥈' },
+  'tercer_lugar': { label: '3er Lugar', icon: '🥉' },
+  'cuarto_lugar': { label: '4to Lugar', icon: '4️⃣' },
+  'goleador': { label: 'Goleadora', icon: '⚽' },
+  'portero': { label: 'Portero', icon: '🧤' },
 };
+
+const GRUPOS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+const LIDERES_KEYS = GRUPOS.map(g => `lider_${g}`);
+const TERCEROS_KEYS = Array.from({length: 8}, (_, i) => `mejor_tercero_${i+1}`);
 
 const FILTROS = ['Partidos', 'Bonos'];
 
@@ -229,7 +234,7 @@ export default function PrediccionesScreen({ recargar }) {
           renderItem={({ item: u, index: i }) => {
             const medallas = ['🥇', '🥈', '🥉'];
             const bonosMap = {};
-            prediccionesBonos.filter(p => p.usuario_id === u.id).forEach(p => { bonosMap[p.clave] = p.valor; });
+            prediccionesBonos.filter(b => b.usuario_id === u.id).forEach(b => { bonosMap[b.clave] = b.valor; });
             return (
               <View style={styles.bonoUserCard}>
                 <View style={styles.bonoUserHeader}>
@@ -237,13 +242,33 @@ export default function PrediccionesScreen({ recargar }) {
                   <Text style={styles.bonoUserNombre}>{u.nombre}</Text>
                   <Text style={styles.bonoUserPuntos}>{u.puntos} pts</Text>
                 </View>
+                <Text style={styles.bonoSeccion}>🏆 Principales</Text>
                 <View style={styles.bonoGrid}>
-                  {Object.entries(BONOS_LABELS).map(([clave, { label, icon, pts }]) => (
+                  {BONOS_KEYS.map(clave => (
                     <View key={clave} style={styles.bonoItem}>
-                      <Text style={styles.bonoItemIcon}>{icon}</Text>
-                      <Text style={styles.bonoItemLabel}>{label}</Text>
+                      <Text style={styles.bonoItemIcon}>{BONOS_LABELS[clave].icon}</Text>
+                      <Text style={styles.bonoItemLabel}>{BONOS_LABELS[clave].label}</Text>
                       <Text style={styles.bonoItemValor} numberOfLines={1}>{bonosMap[clave] || '-'}</Text>
-                      <Text style={styles.bonoItemPts}>+{pts}pts</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={styles.bonoSeccion}>🥇 Líderes de Grupo</Text>
+                <View style={styles.bonoGrid}>
+                  {GRUPOS.map(grupo => (
+                    <View key={grupo} style={styles.bonoItem}>
+                      <Text style={styles.bonoItemIcon}>🏅</Text>
+                      <Text style={styles.bonoItemLabel}>Grupo {grupo}</Text>
+                      <Text style={styles.bonoItemValor} numberOfLines={1}>{bonosMap[`lider_${grupo}`] || '-'}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={styles.bonoSeccion}>3️⃣ Mejores Terceros</Text>
+                <View style={styles.bonoGrid}>
+                  {Array.from({length: 8}, (_, idx) => (
+                    <View key={idx} style={styles.bonoItem}>
+                      <Text style={styles.bonoItemIcon}>3️⃣</Text>
+                      <Text style={styles.bonoItemLabel}>#{idx + 1}</Text>
+                      <Text style={styles.bonoItemValor} numberOfLines={1}>{bonosMap[`mejor_tercero_${idx+1}`] || '-'}</Text>
                     </View>
                   ))}
                 </View>
@@ -252,6 +277,7 @@ export default function PrediccionesScreen({ recargar }) {
           }}
         />
       )}
+
     </View>
   );
 }
@@ -305,4 +331,5 @@ const styles = StyleSheet.create({
   bonoItemLabel: { fontSize: 9, color: '#888', marginBottom: 2 },
   bonoItemValor: { fontSize: 11, fontWeight: 'bold', color: '#333', textAlign: 'center' },
   bonoItemPts: { fontSize: 9, color: '#ffcc40', marginTop: 2 },
+  bonoSeccion: { fontSize: 11, fontWeight: 'bold', color: '#888', marginTop: 8, marginBottom: 4 },
 });

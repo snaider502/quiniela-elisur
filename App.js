@@ -38,13 +38,13 @@ function PagoScreen({ onRefresh }) {
       <Text style={styles.pagoIcono}>🔒</Text>
       <Text style={styles.pagoTitulo}>Acceso Bloqueado</Text>
       <Text style={styles.pagoMensaje}>
-        Para participar en la Quiniela Mundial 2026 debes realizar el pago de inscripción.
+        Para participar en la Quiniela Mundial 2026 debes indicarle a SNAIDER SANTIZO.
       </Text>
       <View style={styles.pagoCard}>
-        <Text style={styles.pagoCardTxt}>Una vez realizado el pago, el administrador activará tu cuenta.</Text>
+        <Text style={styles.pagoCardTxt}>Una vez autorizado, el administrador activará tu cuenta.</Text>
       </View>
       <TouchableOpacity style={styles.verificarBtn} onPress={verificarManual} disabled={verificando}>
-        {verificando ? <ActivityIndicator size="large" color="#292663" /> : <Text style={styles.verificarTxt}>🔄 Ya realicé el pago</Text>}
+        {verificando ? <ActivityIndicator size="large" color="#292663" /> : <Text style={styles.verificarTxt}>🔄 Actualiza</Text>}
       </TouchableOpacity>
       <TouchableOpacity style={styles.salirBtn} onPress={() => supabase.auth.signOut()}>
         <Text style={styles.salirTxt}>Cerrar sesión</Text>
@@ -139,10 +139,10 @@ export default function App() {
   <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
     <Image 
       source={require('./assets/elisur.png')} 
-      style={{ width: 150, height: 90, resizeMode: 'contain' }} 
+      style={{ width: 100, height: 50, resizeMode: 'contain' }} 
     />
     <View>
-      <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>Quiniela ELISUR 2026</Text>
+      <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>Quiniela</Text>
       <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 9 }}>FIFA World Cup 2026</Text>
     </View>
   </View>

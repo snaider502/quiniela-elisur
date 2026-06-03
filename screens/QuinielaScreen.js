@@ -230,9 +230,9 @@ export default function QuinielaScreen({ recargar, activo }) {
     return `${parseInt(partes[2])} ${meses[parseInt(partes[1])-1]}`;
   }
 
-  const partidosVisibles = partidos
-    .filter(p => esFaseVisible(p.grupo))
-    .filter(p => filtroGrupo === 'TODOS' || p.grupo === mapearFiltro(filtroGrupo));
+const partidosVisibles = partidos
+  .filter(p => esFaseVisible(p.grupo))
+  .filter(p => filtroGrupo === 'TODOS' || p.grupo === mapearFiltro(filtroGrupo));
 
   const hayAlgoHabilitado = partidosVisibles.some(p => estaHabilitado(p));
 
