@@ -19,7 +19,7 @@ const BANDERAS = {
   'brasil': 'br', 'túnez': 'tn', 'jordania': 'jo', 'ghana': 'gh',
   'portugal': 'pt', 'colombia': 'co', 'uzbekistán': 'uz',
   'australia': 'au', 'francia': 'fr', 'egipto': 'eg', 'panamá': 'pa',
-  'suecia': 'se','Suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
+  'suecia': 'se', 'turquía': 'tr', 'turquia': 'tr',
   'república checa': 'cz', 'republica checa': 'cz', 'chequia': 'cz',
   'bosnia y herzegovina': 'ba', 'bosnia': 'ba', 'italia': 'it',
   'r. d. congo': 'cd', 'república democrática del congo': 'cd', 'rd congo': 'cd',
@@ -44,9 +44,6 @@ const BONOS_LABELS = {
 };
 
 const GRUPOS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
-const LIDERES_KEYS = GRUPOS.map(g => `lider_${g}`);
-const TERCEROS_KEYS = Array.from({length: 8}, (_, i) => `mejor_tercero_${i+1}`);
-
 const FILTROS = ['Partidos', 'Bonos'];
 
 export default function PrediccionesScreen({ recargar }) {
@@ -62,19 +59,34 @@ export default function PrediccionesScreen({ recargar }) {
   useEffect(() => { cargarDatos(); }, []);
   useEffect(() => { if (recargar > 0) cargarDatos(); }, [recargar]);
 
+  async function cargarTodasPredicciones() {
+    let todas = [];
+    let desde = 0;
+    const tamano = 1000;
+    while (true) {
+      const { data } = await supabase.from('predicciones').select('*').range(desde, desde + tamano - 1);
+      if (!data || data.length === 0) break;
+      todas = [...todas, ...data];
+      if (data.length < tamano) break;
+      desde += tamano;
+    }
+    return todas;
+  }
+
   async function cargarDatos() {
-    const [p, u, pred, res, bonos] = await Promise.all([
+    const [p, u, res, bonos] = await Promise.all([
       supabase.from('partidos').select('*').eq('tipo', 'partido').order('numero', { ascending: true }),
       supabase.from('ranking_view').select('*'),
-      supabase.from('predicciones').select('*'),
       supabase.from('resultados').select('*'),
       supabase.from('predicciones_bonos').select('*'),
     ]);
     if (p.data) { setPartidos(p.data); setPartidoActivo(p.data[0]); }
     if (u.data) setUsuarios(u.data);
-    if (pred.data) setPredicciones(pred.data);
     if (res.data) setResultados(res.data);
     if (bonos.data) setPrediccionesBonos(bonos.data);
+
+    const todasPredicciones = await cargarTodasPredicciones();
+    setPredicciones(todasPredicciones);
     setLoading(false);
   }
 
@@ -85,7 +97,10 @@ export default function PrediccionesScreen({ recargar }) {
   }
 
   function getPrediccion(usuarioId, partidoId) {
-    const p = predicciones.find(p => p.usuario_id === usuarioId && p.partido_id === partidoId);
+    const p = predicciones.find(p =>
+      p.usuario_id === usuarioId &&
+      parseInt(p.partido_id) === parseInt(partidoId)
+    );
     if (!p) return null;
     return { local: p.goles_local, visita: p.goles_visita };
   }
@@ -106,16 +121,23 @@ export default function PrediccionesScreen({ recargar }) {
 
   async function exportarExcel() {
     const { data: parts } = await supabase.from('partidos').select('*').eq('tipo', 'partido').order('numero', { ascending: true });
-    const { data: preds } = await supabase.from('predicciones').select('*');
     const { data: ress } = await supabase.from('resultados').select('*');
-    if (!parts || !usuarios || !preds) return;
+    const { data: bonos } = await supabase.from('predicciones_bonos').select('*');
+    if (!parts || !usuarios) return;
+
+    const preds = await cargarTodasPredicciones();
     const resMap = {};
     ress?.forEach(r => { resMap[r.partido_id] = r; });
-    let csv = 'Participante,' + parts.map(p => `#${p.numero} ${p.equipo_local} vs ${p.equipo_visita}`).join(',') + ',TOTAL PTS\n';
+
+    let csv = 'Participante,';
+    csv += parts.map(p => `#${p.numero} ${p.equipo_local} vs ${p.equipo_visita}`).join(',');
+    csv += ',' + BONOS_KEYS.map(k => BONOS_LABELS[k].label).join(',');
+    csv += ',TOTAL PTS\n';
+
     usuarios.forEach(u => {
       let fila = `"${u.nombre}"`;
       parts.forEach(p => {
-        const pred = preds.find(pr => pr.usuario_id === u.id && pr.partido_id === p.id);
+        const pred = preds.find(pr => pr.usuario_id === u.id && parseInt(pr.partido_id) === parseInt(p.id));
         const res = resMap[p.id];
         if (!pred) { fila += ',-'; }
         else {
@@ -126,9 +148,14 @@ export default function PrediccionesScreen({ recargar }) {
           } else { fila += `,${predStr}`; }
         }
       });
+      const bonosUsuario = bonos?.filter(b => b.usuario_id === u.id) || [];
+      const bonosMap = {};
+      bonosUsuario.forEach(b => { bonosMap[b.clave] = b.valor; });
+      BONOS_KEYS.forEach(k => { fila += `,"${bonosMap[k] || '-'}"`; });
       fila += `,${u.puntos}`;
       csv += fila + '\n';
     });
+
     if (Platform.OS === 'web') {
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -146,7 +173,7 @@ export default function PrediccionesScreen({ recargar }) {
 
   const resultado = partidoActivo ? getResultado(partidoActivo.id) : null;
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
 
   return (
     <View style={styles.container}>
@@ -210,15 +237,20 @@ export default function PrediccionesScreen({ recargar }) {
               const colorStyle = partidoActivo ? getColor(pred, resultado, partidoActivo) : styles.predNeutral;
               const pts = partidoActivo ? getPuntos(pred, resultado, partidoActivo) : null;
               const medallas = ['🥇', '🥈', '🥉'];
+const puntosUnicosP = [...new Set(usuarios.map(u => u.puntos))].sort((a, b) => b - a);
+const posRealP = puntosUnicosP.indexOf(u.puntos) + 1;
+const posIconoP = posRealP === 1 ? '🥇' : posRealP === 2 ? '🥈' : posRealP === 3 ? '🥉' : posRealP;
               return (
-                <View style={styles.userRow}>
-                  <Text style={styles.userPos}>{medallas[i] || i + 1}</Text>
-                  <Text style={styles.userName}>{u.nombre}</Text>
-                  <View style={[styles.predBox, colorStyle]}>
-                    <Text style={styles.predTxt}>{pred ? `${pred.local} - ${pred.visita}` : '-'}</Text>
-                    {pts !== null && <View style={styles.ptsBubble}><Text style={styles.ptsBadge}>+{pts} pts</Text></View>}
+                <View style={styles.userCard}>
+                  <View style={styles.userRow}>
+                    <Text style={styles.userPos}>{posIconoP}</Text>
+                    <Text style={styles.userName}>{u.nombre}</Text>
+                    <View style={[styles.predBox, colorStyle]}>
+                      <Text style={styles.predTxt}>{pred ? `${pred.local} - ${pred.visita}` : '-'}</Text>
+                      {pts !== null && <View style={styles.ptsBubble}><Text style={styles.ptsBadge}>+{pts} pts</Text></View>}
+                    </View>
+                    <Text style={styles.userPuntos}>{u.puntos} pts</Text>
                   </View>
-                  <Text style={styles.userPuntos}>{u.puntos} pts</Text>
                 </View>
               );
             }}
@@ -227,58 +259,57 @@ export default function PrediccionesScreen({ recargar }) {
       )}
 
       {filtro === 'Bonos' && (
-  <FlatList
-    data={usuarios}
-    keyExtractor={u => u.id}
-    contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
-    renderItem={({ item: u, index: i }) => {
-      const medallas = ['🥇', '🥈', '🥉'];
-      const bonosMap = {};
-      prediccionesBonos.filter(b => b.usuario_id === u.id).forEach(b => { bonosMap[b.clave] = b.valor; });
-      return (
-        <View style={styles.bonoUserCard}>
-          <View style={styles.bonoUserHeader}>
-            <Text style={styles.bonoUserPos}>{medallas[i] || i + 1}</Text>
-            <Text style={styles.bonoUserNombre}>{u.nombre}</Text>
-            <Text style={styles.bonoUserPuntos}>{u.puntos} pts</Text>
-          </View>
-
-          <View style={styles.bonoFilaCompacta}>
-            {BONOS_KEYS.map(clave => (
-              <View key={clave} style={styles.bonoChipCompacto}>
-  <Text style={styles.bonoChipIcon}>{BONOS_LABELS[clave].icon}</Text>
-  {getBandera(bonosMap[clave]) && <Image source={{ uri: getBandera(bonosMap[clave]) }} style={{ width: 16, height: 11, borderRadius: 2 }} />}
-  <Text style={styles.bonoChipValor} numberOfLines={1}>{bonosMap[clave] || '-'}</Text>
-</View>
-            ))}
-          </View>
-
-          <View style={styles.bonoFilaGrupos}>
-            {GRUPOS.map(grupo => (
-              <View key={grupo} style={styles.bonoGrupoChip}>
-  <Text style={styles.bonoGrupoLabel}>{grupo}</Text>
-  {getBandera(bonosMap[`lider_${grupo}`]) && <Image source={{ uri: getBandera(bonosMap[`lider_${grupo}`]) }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
-  <Text style={styles.bonoGrupoValor} numberOfLines={1}>{bonosMap[`lider_${grupo}`] ? bonosMap[`lider_${grupo}`].split(' ')[0] : '-'}</Text>
-</View>
-            ))}
-          </View>
-
-          <View style={styles.bonoFilaTerceros}>
-            <Text style={styles.bonoSeccionInline}>3️⃣ </Text>
-            {Array.from({length: 8}, (_, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff8e1', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 3 }}>
-  {getBandera(bonosMap[`mejor_tercero_${idx+1}`]) && <Image source={{ uri: getBandera(bonosMap[`mejor_tercero_${idx+1}`]) }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
-  <Text style={styles.bonoTerceroChip} numberOfLines={1}>
-    {bonosMap[`mejor_tercero_${idx+1}`] ? bonosMap[`mejor_tercero_${idx+1}`].split(' ')[0] : '-'}
-  </Text>
-</View>
-            ))}
-          </View>
-        </View>
-      );
-    }}
-  />
-  )}
+        <FlatList
+          data={usuarios}
+          keyExtractor={u => u.id}
+          contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
+          renderItem={({ item: u, index: i }) => {
+            const puntosUnicosB = [...new Set(usuarios.map(u => u.puntos))].sort((a, b) => b - a);
+const posRealB = puntosUnicosB.indexOf(u.puntos) + 1;
+const posIconoB = posRealB === 1 ? '🥇' : posRealB === 2 ? '🥈' : posRealB === 3 ? '🥉' : posRealB;
+            const bonosMap = {};
+            prediccionesBonos.filter(b => b.usuario_id === u.id).forEach(b => { bonosMap[b.clave] = b.valor; });
+            return (
+              <View style={styles.bonoUserCard}>
+                <View style={styles.bonoUserHeader}>
+                  <Text style={styles.bonoUserPos}>{posIconoB}</Text>
+                  <Text style={styles.bonoUserNombre}>{u.nombre}</Text>
+                  <Text style={styles.bonoUserPuntos}>{u.puntos} pts</Text>
+                </View>
+                <View style={styles.bonoFilaCompacta}>
+                  {BONOS_KEYS.map(clave => (
+                    <View key={clave} style={styles.bonoChipCompacto}>
+                      <Text style={styles.bonoChipIcon}>{BONOS_LABELS[clave].icon}</Text>
+                      {getBandera(bonosMap[clave]) && <Image source={{ uri: getBandera(bonosMap[clave]) }} style={{ width: 16, height: 11, borderRadius: 2 }} />}
+                      <Text style={styles.bonoChipValor} numberOfLines={1}>{bonosMap[clave] || '-'}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.bonoFilaGrupos}>
+                  {GRUPOS.map(grupo => (
+                    <View key={grupo} style={styles.bonoGrupoChip}>
+                      <Text style={styles.bonoGrupoLabel}>{grupo}</Text>
+                      {getBandera(bonosMap[`lider_${grupo}`]) && <Image source={{ uri: getBandera(bonosMap[`lider_${grupo}`]) }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
+                      <Text style={styles.bonoGrupoValor} numberOfLines={1}>{bonosMap[`lider_${grupo}`] ? bonosMap[`lider_${grupo}`].split(' ')[0] : '-'}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.bonoFilaTerceros}>
+                  <Text style={styles.bonoSeccionInline}>3️⃣ </Text>
+                  {Array.from({length: 8}, (_, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff8e1', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 3 }}>
+                      {getBandera(bonosMap[`mejor_tercero_${idx+1}`]) && <Image source={{ uri: getBandera(bonosMap[`mejor_tercero_${idx+1}`]) }} style={{ width: 14, height: 10, borderRadius: 2 }} />}
+                      <Text style={styles.bonoTerceroChip} numberOfLines={1}>
+                        {bonosMap[`mejor_tercero_${idx+1}`] ? bonosMap[`mejor_tercero_${idx+1}`].split(' ')[0] : '-'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
 
     </View>
   );
@@ -289,60 +320,55 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   filtrosContainer: { flexDirection: 'row', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee', padding: 8, gap: 8, alignItems: 'center' },
   filtroBtn: { flex: 1, padding: 10, borderRadius: 20, backgroundColor: '#f0f2f5', alignItems: 'center' },
-  filtroBtnActivo: { backgroundColor: '#292663' },
+  filtroBtnActivo: { backgroundColor: '#2e7d32' },
   filtroTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   filtroTxtActivo: { color: 'white' },
-  exportBtn: { backgroundColor: '#1b5e20', borderRadius: 10, padding: 8, paddingHorizontal: 10 },
-  exportTxt: { color: 'white', fontWeight: 'bold', fontSize: 11 },
+  exportBtn: { backgroundColor: '#1b5e20', borderRadius: 10, padding: 8, paddingHorizontal: 14 },
+  exportTxt: { color: 'white', fontWeight: 'bold', fontSize: 12 },
   partidosContainer: { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
   partidosContent: { paddingHorizontal: 8, paddingVertical: 8, flexDirection: 'row' },
   partidoBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#f0f2f5', marginHorizontal: 4, width: 130 },
-  partidoBtnActivo: { backgroundColor: '#292663' },
+  partidoBtnActivo: { backgroundColor: '#2e7d32' },
   partidoNum: { fontSize: 9, color: '#888', fontWeight: 'bold' },
   partidoEquipos: { fontSize: 11, fontWeight: 'bold', color: '#444', marginVertical: 2 },
   partidoTxtActivo: { color: 'white' },
-  resSmall: { fontSize: 10, color: '#292663', fontWeight: 'bold' },
+  resSmall: { fontSize: 10, color: '#2e7d32', fontWeight: 'bold' },
   resPendiente: { fontSize: 9, color: '#aaa' },
   partidoHeader: { backgroundColor: 'white', padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#eee' },
   equipoRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   bandera: { width: 24, height: 16, borderRadius: 2 },
   equipoNombre: { flex: 1, fontSize: 12, fontWeight: 'bold', color: '#333' },
   scoreCenter: { paddingHorizontal: 12 },
-  scoreReal: { backgroundColor: '#292663', color: 'white', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, fontWeight: 'bold', fontSize: 14 },
+  scoreReal: { backgroundColor: '#2e7d32', color: 'white', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, fontWeight: 'bold', fontSize: 14 },
   scorePendiente: { backgroundColor: '#e9ecef', color: '#777', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, fontWeight: 'bold', fontSize: 12 },
-  userRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 12, marginHorizontal: 12, marginTop: 6, borderRadius: 10, gap: 8, elevation: 1 },
+  userCard: { backgroundColor: 'white', marginHorizontal: 12, marginTop: 6, borderRadius: 10, elevation: 1 },
+  userRow: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
   userPos: { fontSize: 16, width: 32, textAlign: 'center' },
   userName: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#333' },
   predBox: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 80, justifyContent: 'center' },
   predNeutral: { backgroundColor: '#f0f2f5' },
-  predExact: { backgroundColor: '#b3ecfa', borderWidth: 1, borderColor: '#292663' },
+  predExact: { backgroundColor: '#c8e6c9', borderWidth: 1, borderColor: '#2e7d32' },
   predWinner: { backgroundColor: '#fff9c4', borderWidth: 1, borderColor: '#f9a825' },
   predWrong: { backgroundColor: '#ffcdd2', borderWidth: 1, borderColor: '#c62828' },
   predTxt: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   ptsBubble: { backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
   ptsBadge: { fontSize: 10, fontWeight: 'bold', color: '#333' },
-  userPuntos: { fontSize: 12, fontWeight: 'bold', color: '#292663', width: 55, textAlign: 'right' },
+  userPuntos: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', width: 55, textAlign: 'right' },
   bonoUserCard: { backgroundColor: 'white', borderRadius: 12, padding: 10, marginBottom: 8, elevation: 2 },
-bonoUserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-bonoUserPos: { fontSize: 16, width: 28 },
-bonoUserNombre: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#333' },
-bonoUserPuntos: { fontSize: 11, fontWeight: 'bold', color: '#292663' },
-bonoFilaCompacta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 6 },
-bonoChipCompacto: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, minWidth: '30%', flex: 1 },
-bonoChipIcon: { fontSize: 11 },
-bonoChipValor: { fontSize: 10, fontWeight: 'bold', color: '#333', flex: 1 },
-bonoFilaGrupos: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginBottom: 6 },
-bonoGrupoChip: { alignItems: 'center', backgroundColor: '#e3f8fd', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 3, minWidth: '7%' },
-bonoGrupoLabel: { fontSize: 8, color: '#888', fontWeight: 'bold' },
-bonoGrupoValor: { fontSize: 9, fontWeight: 'bold', color: '#292663' },
-bonoFilaTerceros: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, alignItems: 'center' },
-bonoSeccionInline: { fontSize: 11 },
-bonoTerceroChip: { backgroundColor: '#fff8e1', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 3, fontSize: 9, fontWeight: 'bold', color: '#333' },
-bonoSeccion: { fontSize: 11, fontWeight: 'bold', color: '#888', marginTop: 6, marginBottom: 3 },
-bonoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-bonoItem: { backgroundColor: '#f0f2f5', borderRadius: 6, padding: 6, minWidth: '30%', flex: 1, alignItems: 'center' },
-bonoItemIcon: { fontSize: 14, marginBottom: 1 },
-bonoItemLabel: { fontSize: 8, color: '#888', marginBottom: 1 },
-bonoItemValor: { fontSize: 10, fontWeight: 'bold', color: '#333', textAlign: 'center' },
-bonoItemPts: { fontSize: 8, color: '#ffcc40', marginTop: 1 },
+  bonoUserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  bonoUserPos: { fontSize: 16, width: 28 },
+  bonoUserNombre: { flex: 1, fontSize: 13, fontWeight: 'bold', color: '#333' },
+  bonoUserPuntos: { fontSize: 11, fontWeight: 'bold', color: '#2e7d32' },
+  bonoFilaCompacta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 6 },
+  bonoChipCompacto: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#f0f2f5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, minWidth: '30%', flex: 1 },
+  bonoChipIcon: { fontSize: 11 },
+  bonoChipValor: { fontSize: 10, fontWeight: 'bold', color: '#333', flex: 1 },
+  bonoFilaGrupos: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginBottom: 6 },
+  bonoGrupoChip: { alignItems: 'center', backgroundColor: '#e3f8fd', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 3, minWidth: '7%' },
+  bonoGrupoLabel: { fontSize: 8, color: '#888', fontWeight: 'bold' },
+  bonoGrupoValor: { fontSize: 9, fontWeight: 'bold', color: '#292663' },
+  bonoFilaTerceros: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, alignItems: 'center' },
+  bonoSeccionInline: { fontSize: 11 },
+  bonoTerceroChip: { fontSize: 9, fontWeight: 'bold', color: '#333' },
+  bonoSeccion: { fontSize: 11, fontWeight: 'bold', color: '#888', marginTop: 6, marginBottom: 3 },
 });

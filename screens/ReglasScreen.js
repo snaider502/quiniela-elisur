@@ -32,21 +32,28 @@ export default function ReglasScreen({ recargar }) {
         <View style={styles.premioFila}>
           <View style={styles.premioInfo}>
             <Text style={styles.premioPos}>🥇 1er Lugar</Text>
-            <Text style={styles.premioPct}>próximamente</Text>
+            <Text style={styles.premioPct}>Smart TV Compaq 32" con Google TV</Text>
           </View>
           
         </View>
         <View style={styles.premioFila}>
           <View style={styles.premioInfo}>
             <Text style={styles.premioPos}>🥈 2do Lugar</Text>
-            <Text style={styles.premioPct}>próximamente</Text>
+            <Text style={styles.premioPct}>Barreno Furius</Text>
           </View>
           
         </View>
         <View style={styles.premioFila}>
           <View style={styles.premioInfo}>
             <Text style={styles.premioPos}>🥉 3er Lugar</Text>
-            <Text style={styles.premioPct}>próximamente</Text>
+            <Text style={styles.premioPct}>Hielera Truper 9.4L</Text>
+          </View>
+
+          </View>
+        <View style={styles.premioFila}>
+          <View style={styles.premioInfo}>
+            <Text style={styles.premioPos}> ⬇️ Ultimo Lugar</Text>
+            <Text style={styles.premioPct}>Termo de acero inoxidable Truper</Text>
           </View>
           
         </View>
@@ -88,8 +95,8 @@ export default function ReglasScreen({ recargar }) {
             { label: 'Subcampeón', pts: 20 },
             { label: '3er Lugar', pts: 10 },
             { label: '4to Lugar', pts: 5 },
-            { label: 'Líder de Grupo', pts: 10 },
-            { label: 'Mejor Tercero', pts: 5 },
+            { label: 'Líder de Grupo por cada uno', pts: 10 },
+            { label: 'Mejor Tercero por cada uno', pts: 5 },
             { label: 'Goleador', pts: 15 },
             { label: 'Portero Menos Vencido', pts: 15 },
           ].map((b, i) => (

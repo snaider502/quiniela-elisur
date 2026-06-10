@@ -43,22 +43,32 @@ export default function SimuladorScreen({ recargar }) {
   useEffect(() => { if (recargar > 0) cargarDatos(); }, [recargar]);
 
   async function cargarDatos() {
-    const [p, u, pred, res] = await Promise.all([
-      supabase.from('partidos').select('*').in('grupo', GRUPOS_VALIDOS).order('fecha', { ascending: true }),
-      supabase.from('ranking_view').select('*'),
-      supabase.from('predicciones').select('*'),
-      supabase.from('resultados').select('*'),
-    ]);
-    if (p.data) setPartidos(p.data);
-    if (u.data) setUsuarios(u.data);
-    if (pred.data) setPredicciones(pred.data);
-    if (res.data) {
-      const map = {};
-      res.data.forEach(r => { map[r.partido_id] = r; });
-      setResultados(map);
-    }
-    setLoading(false);
+  const [p, u, res] = await Promise.all([
+    supabase.from('partidos').select('*').in('grupo', GRUPOS_VALIDOS).order('fecha', { ascending: true }),
+    supabase.from('ranking_view').select('*'),
+    supabase.from('resultados').select('*'),
+  ]);
+  if (p.data) setPartidos(p.data);
+  if (u.data) setUsuarios(u.data);
+  if (res.data) {
+    const map = {};
+    res.data.forEach(r => { map[r.partido_id] = r; });
+    setResultados(map);
   }
+
+  // Cargar todas las predicciones con paginación
+  let todas = [];
+  let desde = 0;
+  while (true) {
+    const { data } = await supabase.from('predicciones').select('*').range(desde, desde + 999);
+    if (!data || data.length === 0) break;
+    todas = [...todas, ...data];
+    if (data.length < 1000) break;
+    desde += 1000;
+  }
+  setPredicciones(todas);
+  setLoading(false);
+}
 
   const partidosPendientes = partidos.filter(p => !resultados[p.id]);
 
@@ -83,7 +93,7 @@ export default function SimuladorScreen({ recargar }) {
 
   const medallas = ['🥇', '🥈', '🥉'];
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#292663" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2e7d32" /></View>;
 
   return (
     <View style={styles.container}>
@@ -132,16 +142,25 @@ export default function SimuladorScreen({ recargar }) {
         {/* COLUMNA DERECHA - Ranking */}
         <ScrollView style={styles.colRanking} showsVerticalScrollIndicator={false}>
           <Text style={styles.colTitle}>📊 Tabla Simulada</Text>
-          {rankingSimulado.map((u, i) => (
-            <View key={u.id} style={[styles.rankRow, i < 3 && styles.rankTop]}>
-              <Text style={styles.rankPos}>{medallas[i] || i + 1}</Text>
-              <Text style={styles.rankNombre} numberOfLines={1}>{u.nombre}</Text>
-              <View style={styles.rankPuntos}>
-                <Text style={styles.rankTotal}>{u.total}</Text>
-                {u.puntosExtra > 0 && <Text style={styles.rankExtra}>+{u.puntosExtra}</Text>}
-              </View>
-            </View>
-          ))}
+          {rankingSimulado.map((u, i) => {
+  const puntosUnicos = [...new Set(rankingSimulado.map(r => r.total))].sort((a, b) => b - a);
+  const posReal = puntosUnicos.indexOf(u.total) + 1;
+  const esOro = posReal === 1;
+  const esPlata = posReal === 2;
+  const esBronce = posReal === 3;
+  const posIcono = esOro ? '🥇' : esPlata ? '🥈' : esBronce ? '🥉' : posReal;
+
+  return (
+    <View key={u.id} style={[styles.rankRow, (esOro || esPlata || esBronce) && styles.rankTop]}>
+      <Text style={styles.rankPos}>{posIcono}</Text>
+      <Text style={styles.rankNombre} numberOfLines={1}>{u.nombre}</Text>
+      <View style={styles.rankPuntos}>
+        <Text style={styles.rankTotal}>{u.total}</Text>
+        {u.puntosExtra > 0 && <Text style={styles.rankExtra}>+{u.puntosExtra}</Text>}
+      </View>
+    </View>
+  );
+})}
         </ScrollView>
       </View>
     </View>
@@ -174,6 +193,6 @@ guion: { fontSize: 13, fontWeight: 'bold', color: '#333' },
   rankPos: { fontSize: 14, width: 26 },
   rankNombre: { flex: 1, fontSize: 11, fontWeight: 'bold', color: '#333' },
   rankPuntos: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  rankTotal: { fontSize: 13, fontWeight: 'bold', color: '#292663' },
+  rankTotal: { fontSize: 13, fontWeight: 'bold', color: '#2e7d32' },
   rankExtra: { fontSize: 9, fontWeight: 'bold', color: '#f9a825', backgroundColor: '#fffde7', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
 });
